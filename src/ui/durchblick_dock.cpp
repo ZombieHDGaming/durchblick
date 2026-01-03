@@ -18,11 +18,13 @@ void DurchblickDock::showEvent(QShowEvent* e)
 {
     QWidget::showEvent(e);
     if (!e->spontaneous()) {
-        auto layouts = Config::LoadLayoutsForCurrentSceneCollection();
+        auto cfg = Config::LoadLayoutsForCurrentSceneCollection();
         db->GetLayout()->DeleteLayout();
         db->CreateDisplay(true);
-        if (layouts.size() > 1) {
-            db->Load(layouts[1].toObject());
+
+        auto dockLayout = cfg["dock"].toObject();
+        if (!dockLayout.isEmpty()) {
+            db->Load(dockLayout);
         } else {
             db->GetLayout()->CreateDefaultLayout();
         }
