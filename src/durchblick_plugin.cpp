@@ -21,6 +21,7 @@
 #include "ui/durchblick.hpp"
 #include "util/util.h"
 #include <QAction>
+#include <QMenu>
 #include <obs-frontend-api.h>
 #include <obs-module.h>
 #include <thread>
@@ -32,20 +33,29 @@ OBS_MODULE_USE_DEFAULT_LOCALE("durchblick", "en-US")
 bool obs_module_load()
 {
     binfo("Loading v%s-%s (%s) build time %s", PLUGIN_VERSION, GIT_BRANCH, GIT_COMMIT_HASH, BUILD_TIME);
-   
+
     Registry::RegisterCustomWidgetProcedure();
 
-    QAction::connect(static_cast<QAction*>(obs_frontend_add_tools_menu_qaction(T_MENU_OPTION)),
-        &QAction::triggered, [] {
-            auto layouts = Config::LoadLayoutsForCurrentSceneCollection();
+    // Create Durchblick submenu
+    Config::toolsMenu = new QMenu(T_MENU_DURCHBLICK);
 
-            Config::db->CreateDisplay(true);
-            if (layouts.size() > 0)
-                Config::db->Load(layouts[0].toObject());
-            else
-                Config::db->GetLayout()->CreateDefaultLayout();
-            Config::db->show();
-        });
+    // "New Multiview Window..." action
+    QAction* newWindowAction = Config::toolsMenu->addAction(T_MENU_NEW_WINDOW);
+    QAction::connect(newWindowAction, &QAction::triggered, [] {
+        Config::ShowNewMultiviewDialog();
+    });
+
+    // "Manage Windows..." action
+    QAction* manageAction = Config::toolsMenu->addAction(T_MENU_MANAGE);
+    QAction::connect(manageAction, &QAction::triggered, [] {
+        Config::ShowManageMultiviewsDialog();
+    });
+
+    // Separator for dynamic multiview list
+    Config::toolsMenu->addSeparator();
+
+    // Add submenu to OBS Tools menu
+    obs_frontend_add_tools_menu(Config::toolsMenu);
 
     return true;
 }

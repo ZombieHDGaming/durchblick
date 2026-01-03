@@ -17,16 +17,32 @@
  *************************************************************************/
 #pragma once
 #include <QJsonArray>
+#include <QJsonObject>
+#include <QMap>
+#include <QString>
+#include <QMenu>
 
 class Durchblick;
 class DurchblickDock;
 
 namespace Config {
 
-extern QJsonArray LoadLayoutsForCurrentSceneCollection();
+struct MultiviewInstance {
+    QString name;
+    QString id;
+    Durchblick* window;
+    bool isPersistent;
 
-extern Durchblick* db;
+    MultiviewInstance(const QString& name, const QString& id, bool persistent = true);
+    ~MultiviewInstance();
+};
+
+extern QJsonObject LoadLayoutsForCurrentSceneCollection();
+
+extern Durchblick* db; // Legacy default window - kept for backward compatibility
 extern DurchblickDock* dbdock;
+extern QMap<QString, MultiviewInstance*> multiviews;
+extern QMenu* toolsMenu;
 
 extern void RegisterCallbacks();
 
@@ -35,4 +51,14 @@ extern void Load();
 extern void Save();
 
 extern void Cleanup();
+
+// Multiview management functions
+extern MultiviewInstance* CreateMultiview(const QString& name, bool persistent = true);
+extern void RemoveMultiview(const QString& id);
+extern MultiviewInstance* GetMultiview(const QString& id);
+extern QList<QString> GetMultiviewIds();
+extern void UpdateToolsMenu();
+extern void ShowNewMultiviewDialog();
+extern void ShowManageMultiviewsDialog();
+
 }

@@ -126,6 +126,10 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ./src/ui/new_item_dialog.hpp
     ./src/ui/layout_config_dialog.cpp
     ./src/ui/layout_config_dialog.hpp
+    ./src/ui/new_multiview_dialog.cpp
+    ./src/ui/new_multiview_dialog.hpp
+    ./src/ui/manage_multiviews_dialog.cpp
+    ./src/ui/manage_multiviews_dialog.hpp
     ./src/items/registry.cpp
     ./src/items/registry.hpp
     ./src/items/item.hpp

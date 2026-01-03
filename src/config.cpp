@@ -19,6 +19,8 @@
 #include "config.hpp"
 #include "ui/durchblick.hpp"
 #include "ui/durchblick_dock.hpp"
+#include "ui/new_multiview_dialog.hpp"
+#include "ui/manage_multiviews_dialog.hpp"
 #include "util/util.h"
 #include <QDir>
 #include <QFile>
@@ -38,10 +40,29 @@ namespace Config {
 
 Durchblick* db = nullptr;
 DurchblickDock* dbdock = nullptr;
+QMap<QString, MultiviewInstance*> multiviews;
+QMenu* toolsMenu = nullptr;
 
 QJsonObject Cfg;
 
-QJsonArray LoadLayoutsForCurrentSceneCollection()
+MultiviewInstance::MultiviewInstance(const QString& name, const QString& id, bool persistent)
+    : name(name)
+    , id(id)
+    , window(nullptr)
+    , isPersistent(persistent)
+{
+    window = new Durchblick();
+}
+
+MultiviewInstance::~MultiviewInstance()
+{
+    if (window) {
+        window->deleteLater();
+        window = nullptr;
+    }
+}
+
+QJsonObject LoadLayoutsForCurrentSceneCollection()
 {
     BPtr<char> path = obs_module_config_path("layout.json");
     BPtr<char> sc = obs_frontend_get_current_scene_collection();
@@ -60,12 +81,40 @@ QJsonArray LoadLayoutsForCurrentSceneCollection()
             doc = QJsonDocument::fromJson(f.readAll());
             f.close();
             Cfg = doc.object();
-            auto layouts = Cfg[utf8_to_qt(sc.Get())].toArray();
-            if (layouts.isEmpty()) {
+            auto scKey = utf8_to_qt(sc.Get());
+            auto scData = Cfg[scKey];
+
+            // Check if old format (array) or new format (object)
+            if (scData.isArray()) {
+                // Migrate old format to new format
+                binfo("Migrating old layout format to new format for scene collection: %s", sc.Get());
+                auto layouts = scData.toArray();
+                QJsonObject newFormat;
+
+                // Migrate dock layout (index 1 in old format)
+                if (layouts.size() > 1)
+                    newFormat["dock"] = layouts[1];
+
+                // Migrate default window (index 0 in old format)
+                QJsonObject multiviewsObj;
+                if (layouts.size() > 0) {
+                    QJsonObject defaultMV;
+                    defaultMV["name"] = "Main Window";
+                    defaultMV["persistent"] = true;
+                    defaultMV["visible"] = false;
+                    defaultMV["layout"] = layouts[0];
+                    multiviewsObj["default"] = defaultMV;
+                }
+                newFormat["multiviews"] = multiviewsObj;
+
+                Cfg[scKey] = newFormat;
+                return newFormat;
+            } else if (scData.isObject()) {
+                return scData.toObject();
+            } else {
                 berr("No layouts found");
                 return {};
             }
-            return layouts;
         }
     }
     return {};
@@ -102,17 +151,48 @@ void RegisterCallbacks()
 
 void Load()
 {
-    auto layouts = LoadLayoutsForCurrentSceneCollection();
+    auto cfg = LoadLayoutsForCurrentSceneCollection();
 
-    if (!db)
-        db = new Durchblick;
+    // Clear existing multiviews
+    for (auto it = multiviews.begin(); it != multiviews.end(); ++it) {
+        delete it.value();
+    }
+    multiviews.clear();
 
-    if (layouts.size() > 0) {
-        db->Load(layouts[0].toObject());
-    } else {
+    // Load multiviews
+    auto multiviewsObj = cfg["multiviews"].toObject();
+    for (auto it = multiviewsObj.begin(); it != multiviewsObj.end(); ++it) {
+        auto mvData = it.value().toObject();
+        auto id = it.key();
+        auto name = mvData["name"].toString();
+        bool persistent = mvData["persistent"].toBool(true);
+        bool visible = mvData["visible"].toBool(false);
+
+        auto* mv = new MultiviewInstance(name, id, persistent);
+        // Force display creation even if window will be hidden
+        // This ensures rendering callbacks are properly connected
+        mv->window->CreateDisplay(true);
+        mv->window->Load(mvData["layout"].toObject());
+        mv->window->setVisible(visible);
+
+        multiviews[id] = mv;
+
+        // Keep backward compatibility: set db to the first/default multiview
+        if (id == "default" && !db) {
+            db = mv->window;
+        }
+    }
+
+    // If no multiviews exist, create default one
+    if (multiviews.isEmpty()) {
+        if (!db)
+            db = new Durchblick;
         db->setVisible(false);
         db->GetLayout()->CreateDefaultLayout();
     }
+
+    // Update the tools menu with loaded multiviews
+    UpdateToolsMenu();
 
 #if !defined(_WIN32) && !defined(__APPLE__)
     if (obs_get_nix_platform() > OBS_NIX_PLATFORM_X11_EGL)
@@ -126,8 +206,9 @@ void Load()
             obs_frontend_pop_ui_translation();
         }
 
-        if (layouts.size() > 1) {
-            dbdock->GetDurchblick()->Load(layouts[1].toObject());
+        auto dockLayout = cfg["dock"].toObject();
+        if (!dockLayout.isEmpty()) {
+            dbdock->GetDurchblick()->Load(dockLayout);
         } else {
             dbdock->setVisible(false);
             dbdock->GetDurchblick()->GetLayout()->CreateDefaultLayout();
@@ -137,28 +218,40 @@ void Load()
 
 void Save()
 {
-
-    QJsonArray layouts {};
-    QJsonObject obj1 {}, obj2 {};
+    QJsonObject sceneCollectionData {};
     BPtr<char> path = obs_module_config_path("layout.json");
     BPtr<char> sc = obs_frontend_get_current_scene_collection();
     QFile f(utf8_to_qt(path.Get()));
 
-    if (db) {
-        db->Save(obj1);
-        layouts.append(obj1);
-    } else {
-        layouts.append({});
-    }
+    // Save multiviews
+    QJsonObject multiviewsObj {};
+    for (auto it = multiviews.begin(); it != multiviews.end(); ++it) {
+        auto* mv = it.value();
+        if (!mv->isPersistent)
+            continue; // Don't save non-persistent multiviews
 
+        QJsonObject mvData {};
+        mvData["name"] = mv->name;
+        mvData["persistent"] = mv->isPersistent;
+        mvData["visible"] = mv->window->isVisible();
+
+        QJsonObject layout {};
+        mv->window->Save(layout);
+        mvData["layout"] = layout;
+
+        multiviewsObj[mv->id] = mvData;
+    }
+    sceneCollectionData["multiviews"] = multiviewsObj;
+
+    // Save dock layout
     if (dbdock) {
-        dbdock->GetDurchblick()->Save(obj2);
-        layouts.append(obj2);
-    } else {
-        layouts.append({});
+        QJsonObject dockLayout {};
+        dbdock->GetDurchblick()->Save(dockLayout);
+        sceneCollectionData["dock"] = dockLayout;
     }
 
-    Cfg[utf8_to_qt(sc.Get())] = layouts;
+    Cfg[utf8_to_qt(sc.Get())] = sceneCollectionData;
+
     if (f.open(QIODevice::WriteOnly)) {
         QJsonDocument doc;
         doc.setObject(Cfg);
@@ -178,14 +271,126 @@ void Save()
 
 void Cleanup()
 {
-    if (db) {
-        db->deleteLater();
-        db = nullptr;
+    // Clean up multiviews
+    for (auto it = multiviews.begin(); it != multiviews.end(); ++it) {
+        delete it.value();
     }
+    multiviews.clear();
+
+    // Note: db might point to a multiview window, so don't delete it here
+    // It will be deleted when multiviews are cleaned up
+    db = nullptr;
+
     if (dbdock) {
         dbdock->deleteLater();
         dbdock = nullptr;
     }
+}
+
+MultiviewInstance* CreateMultiview(const QString& name, bool persistent)
+{
+    // Generate unique ID
+    QString id = name.toLower().replace(" ", "_");
+    int counter = 1;
+    QString baseId = id;
+    while (multiviews.contains(id)) {
+        id = baseId + "_" + QString::number(counter++);
+    }
+
+    auto* mv = new MultiviewInstance(name, id, persistent);
+    mv->window->CreateDisplay(true);
+    mv->window->GetLayout()->CreateDefaultLayout();
+
+    multiviews[id] = mv;
+
+    UpdateToolsMenu();
+    return mv;
+}
+
+void RemoveMultiview(const QString& id)
+{
+    if (multiviews.contains(id)) {
+        auto* mv = multiviews[id];
+
+        // Don't delete if this is the legacy db pointer
+        if (mv->window == db) {
+            db = nullptr;
+        }
+
+        multiviews.remove(id);
+        delete mv;
+
+        UpdateToolsMenu();
+    }
+}
+
+MultiviewInstance* GetMultiview(const QString& id)
+{
+    return multiviews.value(id, nullptr);
+}
+
+QList<QString> GetMultiviewIds()
+{
+    return multiviews.keys();
+}
+
+void UpdateToolsMenu()
+{
+    if (!toolsMenu)
+        return;
+
+    // Remove all dynamic items (after the second separator)
+    auto actions = toolsMenu->actions();
+    bool afterSeparator = false;
+    int separatorCount = 0;
+    QList<QAction*> toRemove;
+
+    for (auto* action : actions) {
+        if (action->isSeparator()) {
+            separatorCount++;
+            if (separatorCount >= 2) {
+                afterSeparator = true;
+                continue;
+            }
+        }
+        if (afterSeparator) {
+            toRemove.append(action);
+        }
+    }
+
+    for (auto* action : toRemove) {
+        toolsMenu->removeAction(action);
+        delete action;
+    }
+
+    // Add actions for each multiview
+    for (auto it = multiviews.begin(); it != multiviews.end(); ++it) {
+        auto* mv = it.value();
+        QAction* action = toolsMenu->addAction(mv->name);
+        QString capturedId = mv->id; // Capture by value for lambda
+        QObject::connect(action, &QAction::triggered, [capturedId] {
+            auto* mv = GetMultiview(capturedId);
+            if (mv && mv->window) {
+                mv->window->show();
+                mv->window->raise();
+                mv->window->activateWindow();
+            }
+        });
+    }
+}
+
+void ShowNewMultiviewDialog()
+{
+    auto* dialog = new NewMultiviewDialog(static_cast<QWidget*>(obs_frontend_get_main_window()));
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->exec();
+}
+
+void ShowManageMultiviewsDialog()
+{
+    auto* dialog = new ManageMultiviewsDialog(static_cast<QWidget*>(obs_frontend_get_main_window()));
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->exec();
 }
 
 }
