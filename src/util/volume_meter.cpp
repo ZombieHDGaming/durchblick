@@ -97,8 +97,13 @@ MixerMeter::MixerMeter(OBSSource src, int x, int y, int height, int channel_widt
 
 MixerMeter::~MixerMeter()
 {
-    if (m_source)
-        signal_handler_disconnect(obs_source_get_signal_handler(m_source), "mute", on_source_muted, this);
+    // Disconnect all signals
+    if (m_source) {
+        mute_signal.Disconnect();
+        vol_changed_signal.Disconnect();
+        rename_signal.Disconnect();
+    }
+
     obs_volmeter_remove_callback(m_meter, volume_meter, this);
     obs_volmeter_destroy(m_meter);
 }
@@ -139,26 +144,35 @@ void MixerMeter::Update(const float magnitude[], const float peak[], const float
 
 void MixerMeter::SetSource(OBSSource src)
 {
+    // Disconnect previous source signals before connecting new ones
+    if (m_source) {
+        mute_signal.Disconnect();
+        vol_changed_signal.Disconnect();
+        rename_signal.Disconnect();
+    }
+
     m_source = src;
-    signal_handler_t* handler = obs_source_get_signal_handler(src);
-    mute_signal.Connect(
-        handler, "mute", [](void* d, calldata_t* cd) {
-            calldata_get_bool(cd, "muted", &static_cast<MixerMeter*>(d)->m_muted);
-        },
-        this);
-    vol_changed_signal.Connect(
-        handler, "volume", [](void* d, calldata_t*) {
-            static_cast<MixerMeter*>(d)->OnSourceVolumeChanged();
-        },
-        this);
-    rename_signal.Connect(
-        handler, "rename", [](void* d, calldata_t*) {
-            static_cast<MixerMeter*>(d)->OnSourceNameChanged();
-        },
-        this);
+
+    if (src) {
+        signal_handler_t* handler = obs_source_get_signal_handler(src);
+        mute_signal.Connect(
+            handler, "mute", [](void* d, calldata_t* cd) {
+                calldata_get_bool(cd, "muted", &static_cast<MixerMeter*>(d)->m_muted);
+            },
+            this);
+        vol_changed_signal.Connect(
+            handler, "volume", [](void* d, calldata_t*) {
+                static_cast<MixerMeter*>(d)->OnSourceVolumeChanged();
+            },
+            this);
+        rename_signal.Connect(
+            handler, "rename", [](void* d, calldata_t*) {
+                static_cast<MixerMeter*>(d)->OnSourceNameChanged();
+            },
+            this);
+    }
 
     if (m_meter) {
-
         int currentNrAudioChannels = obs_volmeter_get_nr_channels(m_meter);
 
         m_muted = obs_source_muted(src);

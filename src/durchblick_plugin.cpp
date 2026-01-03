@@ -62,5 +62,13 @@ void obs_module_post_load()
 
 void obs_module_unload()
 {
+    Config::RemoveCallbacks();
+    Config::Cleanup();
+
+    if (Config::toolsMenu) {
+        delete Config::toolsMenu;
+        Config::toolsMenu = nullptr;
+    }
+
     Registry::Free();
 }

@@ -20,10 +20,11 @@
 #include "../config.hpp"
 #include "durchblick.hpp"
 #include "../util/util.h"
+#include <QApplication>
 #include <QLabel>
 #include <QMessageBox>
 #include <QPushButton>
-#include <QCursor>
+#include <QScreen>
 
 void NewMultiviewDialog::OKClicked()
 {
@@ -82,7 +83,11 @@ NewMultiviewDialog::NewMultiviewDialog(QWidget* parent)
 
     resize(400, 150);
 
-    // Center dialog on screen
-    auto p = QCursor::pos();
-    move(p.x() - width() / 2, p.y() - height() / 2);
+    // Center dialog on primary screen
+    if (QScreen* screen = QApplication::primaryScreen()) {
+        QRect screenGeometry = screen->geometry();
+        int x = (screenGeometry.width() - width()) / 2 + screenGeometry.x();
+        int y = (screenGeometry.height() - height()) / 2 + screenGeometry.y();
+        move(x, y);
+    }
 }

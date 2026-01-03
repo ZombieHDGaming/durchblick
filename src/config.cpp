@@ -45,6 +45,10 @@ QMenu* toolsMenu = nullptr;
 
 QJsonObject Cfg;
 
+// Store callback pointers so we can remove them later
+static void* save_callback_handle = nullptr;
+static void* event_callback_handle = nullptr;
+
 MultiviewInstance::MultiviewInstance(const QString& name, const QString& id, bool persistent)
     : name(name)
     , id(id)
@@ -57,7 +61,7 @@ MultiviewInstance::MultiviewInstance(const QString& name, const QString& id, boo
 MultiviewInstance::~MultiviewInstance()
 {
     if (window) {
-        window->deleteLater();
+        delete window;
         window = nullptr;
     }
 }
@@ -120,33 +124,49 @@ QJsonObject LoadLayoutsForCurrentSceneCollection()
     return {};
 }
 
+static void save_callback(obs_data_t*, bool, void*)
+{
+    // Refresh this flag because if the user changed the "Hide OBS window from display capture setting"
+    // durchblick would otherwise suddenly show up again
+    if (db)
+        db->SetHideFromDisplayCapture(db->GetHideFromDisplayCapture());
+}
+
+static void event_callback(enum obs_frontend_event event, void*)
+{
+    if (event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
+        Load();
+    } else if (event == OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN) {
+        // I couldn't find another event that was on exit and
+        // before source/scene data was cleared
+
+        Save();
+        Cleanup();
+    } else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING) {
+        Save(); // Save current layout
+        if (db)
+            db->GetLayout()->Clear();
+    } else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED) {
+        Load();
+    }
+}
+
 void RegisterCallbacks()
 {
-    obs_frontend_add_save_callback([](obs_data_t*, bool, void*) {
-        // Refresh this flag because if the user changed the "Hide OBS window from display capture setting"
-        // durchblick would otherwise suddenly show up again
-        if (db)
-            db->SetHideFromDisplayCapture(db->GetHideFromDisplayCapture());
-    },
-        nullptr);
+    save_callback_handle = obs_frontend_add_save_callback(save_callback, nullptr);
+    event_callback_handle = obs_frontend_add_event_callback(event_callback, nullptr);
+}
 
-    obs_frontend_add_event_callback([](enum obs_frontend_event event, void*) {
-        if (event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
-            Load();
-        } else if (event == OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN) {
-            // I couldn't find another event that was on exit and
-            // before source/scene data was cleared
-
-            Save();
-            Cleanup();
-        } else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING) {
-            Save(); // Save current layout
-            db->GetLayout()->Clear();
-        } else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED) {
-            Load();
-        }
-    },
-        nullptr);
+void RemoveCallbacks()
+{
+    if (save_callback_handle) {
+        obs_frontend_remove_save_callback(save_callback, nullptr);
+        save_callback_handle = nullptr;
+    }
+    if (event_callback_handle) {
+        obs_frontend_remove_event_callback(event_callback, nullptr);
+        event_callback_handle = nullptr;
+    }
 }
 
 void Load()
@@ -169,6 +189,7 @@ void Load()
         bool visible = mvData["visible"].toBool(false);
 
         auto* mv = new MultiviewInstance(name, id, persistent);
+        mv->window->setWindowTitle(name);
         // Force display creation even if window will be hidden
         // This ensures rendering callbacks are properly connected
         mv->window->CreateDisplay(true);
@@ -279,7 +300,7 @@ void Cleanup()
     db = nullptr;
 
     if (dbdock) {
-        dbdock->deleteLater();
+        delete dbdock;
         dbdock = nullptr;
     }
 }
@@ -295,6 +316,7 @@ MultiviewInstance* CreateMultiview(const QString& name, bool persistent)
     }
 
     auto* mv = new MultiviewInstance(name, id, persistent);
+    mv->window->setWindowTitle(name);
     mv->window->CreateDisplay(true);
     mv->window->GetLayout()->CreateDefaultLayout();
 

@@ -20,12 +20,13 @@
 #include "../config.hpp"
 #include "durchblick.hpp"
 #include "../util/util.h"
+#include <QApplication>
 #include <QHBoxLayout>
 #include <QInputDialog>
 #include <QJsonObject>
 #include <QMessageBox>
 #include <QPushButton>
-#include <QCursor>
+#include <QScreen>
 
 void ManageMultiviewsDialog::OnShowWindow()
 {
@@ -60,6 +61,9 @@ void ManageMultiviewsDialog::OnRenameWindow()
 
     if (ok && !newName.trimmed().isEmpty()) {
         mv->name = newName.trimmed();
+        if (mv->window) {
+            mv->window->setWindowTitle(newName.trimmed());
+        }
         Config::UpdateToolsMenu();
         RefreshList();
     }
@@ -195,7 +199,11 @@ ManageMultiviewsDialog::ManageMultiviewsDialog(QWidget* parent)
 
     RefreshList();
 
-    // Center dialog on screen
-    auto p = QCursor::pos();
-    move(p.x() - width() / 2, p.y() - height() / 2);
+    // Center dialog on primary screen
+    if (QScreen* screen = QApplication::primaryScreen()) {
+        QRect screenGeometry = screen->geometry();
+        int x = (screenGeometry.width() - width()) / 2 + screenGeometry.x();
+        int y = (screenGeometry.height() - height()) / 2 + screenGeometry.y();
+        move(x, y);
+    }
 }

@@ -45,6 +45,7 @@ extern QMap<QString, MultiviewInstance*> multiviews;
 extern QMenu* toolsMenu;
 
 extern void RegisterCallbacks();
+extern void RemoveCallbacks();
 
 extern void Load();
 

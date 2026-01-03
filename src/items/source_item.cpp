@@ -140,14 +140,17 @@ void SourceItem::LoadConfigFromWidget(QWidget* w)
 
 void SourceItem::SetSource(obs_source_t* src)
 {
-    if (m_src)
+    // Disconnect previous source signal before setting new source
+    if (m_src) {
         obs_source_dec_showing(m_src);
+        removedSignal.Disconnect();
+    }
 
     m_src = src;
     if (m_src) {
         if (m_vol_meter)
             m_vol_meter->SetSource(src);
-        removedSignal = OBSSignal(obs_source_get_signal_handler(m_src), "remove",
+        removedSignal.Connect(obs_source_get_signal_handler(m_src), "remove",
             SourceItem::OBSSourceRemoved, this);
         obs_source_inc_showing(m_src);
         if (m_toggle_label->isChecked()) {

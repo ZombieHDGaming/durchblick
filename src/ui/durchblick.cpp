@@ -210,6 +210,27 @@ void Durchblick::closeEvent(QCloseEvent* e)
 void Durchblick::showEvent(QShowEvent* e)
 {
     QWidget::showEvent(e);
+
+    // If the display was deleted (e.g., after closing the window), recreate it
+    if (!e->spontaneous() && !GetDisplay()) {
+        auto cfg = Config::LoadLayoutsForCurrentSceneCollection();
+        CreateDisplay(true);
+
+        // Find this window in the multiviews and reload its layout
+        for (auto it = Config::multiviews.begin(); it != Config::multiviews.end(); ++it) {
+            if (it.value()->window == this) {
+                auto multiviewsObj = cfg["multiviews"].toObject();
+                auto mvData = multiviewsObj[it.key()].toObject();
+                if (!mvData.isEmpty() && mvData.contains("layout")) {
+                    Load(mvData["layout"].toObject());
+                } else {
+                    m_layout.CreateDefaultLayout();
+                }
+                break;
+            }
+        }
+    }
+
     if (m_saved_state == WindowState::Maximized)
         setWindowState(windowState() | Qt::WindowMaximized);
     else if (m_current_monitor >= 0)
@@ -267,7 +288,6 @@ Durchblick::~Durchblick()
     m_screen = nullptr;
     m_ready = false;
     m_layout.DeleteLayout();
-    deleteLater();
 }
 
 void Durchblick::OnClose()
