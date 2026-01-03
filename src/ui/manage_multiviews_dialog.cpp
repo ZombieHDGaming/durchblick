@@ -22,7 +22,10 @@
 #include "../util/util.h"
 #include <QHBoxLayout>
 #include <QInputDialog>
+#include <QJsonObject>
 #include <QMessageBox>
+#include <QPushButton>
+#include <QCursor>
 
 void ManageMultiviewsDialog::OnShowWindow()
 {

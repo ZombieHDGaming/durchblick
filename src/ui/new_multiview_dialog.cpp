@@ -22,6 +22,8 @@
 #include "../util/util.h"
 #include <QLabel>
 #include <QMessageBox>
+#include <QPushButton>
+#include <QCursor>
 
 void NewMultiviewDialog::OKClicked()
 {
