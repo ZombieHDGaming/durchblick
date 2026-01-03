@@ -191,9 +191,6 @@ void Load()
         db->GetLayout()->CreateDefaultLayout();
     }
 
-    // Update the tools menu with loaded multiviews
-    UpdateToolsMenu();
-
 #if !defined(_WIN32) && !defined(__APPLE__)
     if (obs_get_nix_platform() > OBS_NIX_PLATFORM_X11_EGL)
 #endif
@@ -303,7 +300,6 @@ MultiviewInstance* CreateMultiview(const QString& name, bool persistent)
 
     multiviews[id] = mv;
 
-    UpdateToolsMenu();
     return mv;
 }
 
@@ -319,8 +315,6 @@ void RemoveMultiview(const QString& id)
 
         multiviews.remove(id);
         delete mv;
-
-        UpdateToolsMenu();
     }
 }
 
@@ -339,29 +333,23 @@ void UpdateToolsMenu()
     if (!toolsMenu)
         return;
 
-    // Remove all dynamic items (after the second separator)
-    auto actions = toolsMenu->actions();
-    bool afterSeparator = false;
-    int separatorCount = 0;
-    QList<QAction*> toRemove;
+    // Clear all existing menu items
+    toolsMenu->clear();
 
-    for (auto* action : actions) {
-        if (action->isSeparator()) {
-            separatorCount++;
-            if (separatorCount >= 2) {
-                afterSeparator = true;
-                continue;
-            }
-        }
-        if (afterSeparator) {
-            toRemove.append(action);
-        }
-    }
+    // "New Multiview Window..." action
+    QAction* newWindowAction = toolsMenu->addAction(T_MENU_NEW_WINDOW);
+    QObject::connect(newWindowAction, &QAction::triggered, [] {
+        ShowNewMultiviewDialog();
+    });
 
-    for (auto* action : toRemove) {
-        toolsMenu->removeAction(action);
-        delete action;
-    }
+    // "Manage Windows..." action
+    QAction* manageAction = toolsMenu->addAction(T_MENU_MANAGE);
+    QObject::connect(manageAction, &QAction::triggered, [] {
+        ShowManageMultiviewsDialog();
+    });
+
+    // Separator for dynamic multiview list
+    toolsMenu->addSeparator();
 
     // Add actions for each multiview
     for (auto it = multiviews.begin(); it != multiviews.end(); ++it) {

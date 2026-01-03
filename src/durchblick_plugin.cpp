@@ -36,26 +36,15 @@ bool obs_module_load()
 
     Registry::RegisterCustomWidgetProcedure();
 
-    // Create Durchblick submenu
-    Config::toolsMenu = new QMenu(T_MENU_DURCHBLICK);
+    // Create Durchblick menu action and submenu
+    QAction* action = static_cast<QAction*>(obs_frontend_add_tools_menu_qaction(T_MENU_DURCHBLICK));
+    Config::toolsMenu = new QMenu();
+    action->setMenu(Config::toolsMenu);
 
-    // "New Multiview Window..." action
-    QAction* newWindowAction = Config::toolsMenu->addAction(T_MENU_NEW_WINDOW);
-    QAction::connect(newWindowAction, &QAction::triggered, [] {
-        Config::ShowNewMultiviewDialog();
+    // Populate menu dynamically when it's about to show
+    QObject::connect(Config::toolsMenu, &QMenu::aboutToShow, [] {
+        Config::UpdateToolsMenu();
     });
-
-    // "Manage Windows..." action
-    QAction* manageAction = Config::toolsMenu->addAction(T_MENU_MANAGE);
-    QAction::connect(manageAction, &QAction::triggered, [] {
-        Config::ShowManageMultiviewsDialog();
-    });
-
-    // Separator for dynamic multiview list
-    Config::toolsMenu->addSeparator();
-
-    // Add submenu to OBS Tools menu
-    obs_frontend_add_tools_menu(Config::toolsMenu);
 
     return true;
 }
