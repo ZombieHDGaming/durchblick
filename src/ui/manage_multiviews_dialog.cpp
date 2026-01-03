@@ -18,6 +18,7 @@
 
 #include "manage_multiviews_dialog.hpp"
 #include "../config.hpp"
+#include "durchblick.hpp"
 #include "../util/util.h"
 #include <QHBoxLayout>
 #include <QInputDialog>

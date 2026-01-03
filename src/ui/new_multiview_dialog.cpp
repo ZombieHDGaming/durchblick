@@ -18,6 +18,7 @@
 
 #include "new_multiview_dialog.hpp"
 #include "../config.hpp"
+#include "durchblick.hpp"
 #include "../util/util.h"
 #include <QLabel>
 #include <QMessageBox>
