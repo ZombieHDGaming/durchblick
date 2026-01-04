@@ -104,12 +104,8 @@ SourceItem::SourceItem(Layout* parent, int x, int y, int w, int h)
 
 SourceItem::~SourceItem()
 {
-    if (m_src) {
+    if (m_src)
         obs_source_dec_showing(m_src);
-        // Release our reference (but not for placeholder as it's static)
-        if (m_src != placeholder_source)
-            obs_source_release(m_src);
-    }
 }
 
 QWidget* SourceItem::GetConfigWidget()
@@ -150,28 +146,20 @@ void SourceItem::LoadConfigFromWidget(QWidget* w)
             m_vol_meter = std::make_unique<MixerMeter>(src, 10, 10, int(h * m_volume_meter_height));
         }
         SetSource(src);
-        obs_source_release(src); // Release the reference from obs_get_source_by_name
+        // OBSSource smart pointer takes ownership, no need to release
     }
 }
 
 void SourceItem::SetSource(obs_source_t* src)
 {
-    // Release previous source reference before setting new source
-    if (m_src && m_src != placeholder_source) {
-        obs_source_dec_showing(m_src);
-        removedSignal.Disconnect();
-        obs_source_release(m_src);
-    } else if (m_src == placeholder_source && m_src) {
+    // Disconnect previous source signal before setting new source
+    if (m_src) {
         obs_source_dec_showing(m_src);
         removedSignal.Disconnect();
     }
 
     m_src = src;
     if (m_src) {
-        // Hold a reference to the source (don't addref placeholder as it's static)
-        if (m_src != placeholder_source)
-            obs_source_addref(m_src);
-
         if (m_vol_meter)
             m_vol_meter->SetSource(src);
         removedSignal.Connect(obs_source_get_signal_handler(m_src), "remove",
@@ -218,7 +206,7 @@ void SourceItem::ReadFromJson(QJsonObject const& Obj)
     obs_source_t* src = obs_get_source_by_name(qt_to_utf8(Obj["source"].toString()));
     if (src) {
         SetSource(src);
-        obs_source_release(src); // Release the reference from obs_get_source_by_name
+        // OBSSource smart pointer takes ownership, no need to release
     } else {
         SetSource(placeholder_source);
     }
