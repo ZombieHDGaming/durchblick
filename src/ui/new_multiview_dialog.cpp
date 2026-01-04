@@ -43,7 +43,13 @@ void NewMultiviewDialog::OKClicked()
     auto* mv = Config::CreateMultiview(name, persistent, docked);
     if (mv) {
         if (docked && mv->dock) {
-            mv->dock->show();
+            // After obs_frontend_add_dock_by_id, the dock gets wrapped in a QDockWidget parent
+            // Show the parent QDockWidget to make the dock visible
+            if (mv->dock->parentWidget()) {
+                mv->dock->parentWidget()->show();
+            } else {
+                mv->dock->show();
+            }
         } else if (!docked && mv->window) {
             mv->window->show();
             mv->window->raise();

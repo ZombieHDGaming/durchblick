@@ -63,14 +63,18 @@ MultiviewInstance::MultiviewInstance(const QString& name, const QString& id, boo
         const auto main_window = static_cast<QMainWindow*>(obs_frontend_get_main_window());
         if (main_window) {
             obs_frontend_push_ui_translation(obs_module_get_string);
-            dock = new DurchblickDock((QWidget*)main_window, true);  // true = multiview dock
+            // Create dock with no parent initially - OBS will parent it when adding
+            dock = new DurchblickDock(nullptr, true);  // true = multiview dock
             dock->setWindowTitle(name);
+            dock->setObjectName(name);  // Set object name for OBS to identify it
+
             // Register dock with unique ID
             QString dockId = QString("durchblick_") + id;
             QByteArray dockIdBytes = dockId.toUtf8();
             QByteArray nameBytes = name.toUtf8();
             obs_frontend_add_dock_by_id(dockIdBytes.constData(), nameBytes.constData(), dock);
             obs_frontend_pop_ui_translation();
+
             window = dock->GetDurchblick();
             blog(LOG_INFO, "[durchblick] Created docked multiview '%s' with id '%s'", qt_to_utf8(name), qt_to_utf8(id));
         } else {
@@ -265,7 +269,12 @@ void Load()
             if (!docked) {
                 mv->window->setVisible(visible);
             } else if (mv->dock) {
-                mv->dock->setVisible(visible);
+                // For docks, show/hide the parent QDockWidget created by OBS
+                if (mv->dock->parentWidget()) {
+                    mv->dock->parentWidget()->setVisible(visible);
+                } else {
+                    mv->dock->setVisible(visible);
+                }
             }
         } else {
             blog(LOG_ERROR, "[durchblick] Failed to create window for multiview '%s'", qt_to_utf8(name));
@@ -324,7 +333,12 @@ void Save()
 
         // Get visibility from window or dock
         if (mv->isDocked && mv->dock) {
-            mvData["visible"] = mv->dock->isVisible();
+            // For docks, check the parent QDockWidget's visibility
+            if (mv->dock->parentWidget()) {
+                mvData["visible"] = mv->dock->parentWidget()->isVisible();
+            } else {
+                mvData["visible"] = mv->dock->isVisible();
+            }
         } else if (mv->window) {
             mvData["visible"] = mv->window->isVisible();
         }
