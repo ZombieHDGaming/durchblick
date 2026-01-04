@@ -39,8 +39,12 @@ MixerSlider::MixerSlider(AudioMixerRenderer* parent, OBSSource src, int x, int y
 
 MixerSlider::~MixerSlider()
 {
-    obs_fader_remove_callback(m_fader, fader_update, this);
-    obs_fader_destroy(m_fader);
+    // Detach from source first to prevent callbacks during destruction
+    if (m_fader) {
+        obs_fader_remove_callback(m_fader, fader_update, this);
+        obs_fader_detach_source(m_fader);
+        obs_fader_destroy(m_fader);
+    }
 }
 
 void MixerSlider::Render(float cell_scale, float source_scale_x, float source_scale_y)

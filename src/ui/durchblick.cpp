@@ -284,7 +284,10 @@ Durchblick::Durchblick(QWidget* widget, Qt::WindowType t)
 
 Durchblick::~Durchblick()
 {
-    obs_display_remove_draw_callback(GetDisplay(), RenderLayout, this);
+    // Remove draw callback if display exists
+    if (GetDisplay())
+        obs_display_remove_draw_callback(GetDisplay(), RenderLayout, this);
+
     m_screen = nullptr;
     m_ready = false;
     m_layout.DeleteLayout();

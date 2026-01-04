@@ -97,6 +97,12 @@ MixerMeter::MixerMeter(OBSSource src, int x, int y, int height, int channel_widt
 
 MixerMeter::~MixerMeter()
 {
+    // Detach from source first to prevent callbacks during destruction
+    if (m_meter) {
+        obs_volmeter_remove_callback(m_meter, volume_meter, this);
+        obs_volmeter_detach_source(m_meter);
+    }
+
     // Disconnect all signals
     if (m_source) {
         mute_signal.Disconnect();
@@ -104,8 +110,9 @@ MixerMeter::~MixerMeter()
         rename_signal.Disconnect();
     }
 
-    obs_volmeter_remove_callback(m_meter, volume_meter, this);
-    obs_volmeter_destroy(m_meter);
+    // Now safe to destroy the volume meter
+    if (m_meter)
+        obs_volmeter_destroy(m_meter);
 }
 
 void MixerMeter::SetType(obs_fader_type t)
