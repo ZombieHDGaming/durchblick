@@ -133,7 +133,7 @@ void SourceItem::LoadConfigFromWidget(QWidget* w)
 {
     auto* custom = dynamic_cast<SourceItemWidget*>(w);
     if (custom) {
-        OBSSourceAutoRelease src = obs_get_source_by_name(qt_to_utf8(custom->m_combo_box->currentText()));
+        obs_source_t* src = obs_get_source_by_name(qt_to_utf8(custom->m_combo_box->currentText()));
         m_font_scale = custom->m_font_size->value() / 100.f;
         m_channel_width = custom->m_channel_width->value();
         m_volume_meter_height = custom->m_volume_meter_height->value() / 100.f;
@@ -143,9 +143,10 @@ void SourceItem::LoadConfigFromWidget(QWidget* w)
         m_toggle_volume->blockSignals(false);
         if (src && custom->m_show_volume_meter->isChecked()) {
             auto h = obs_source_get_height(src);
-            m_vol_meter = std::make_unique<MixerMeter>(src.Get(), 10, 10, int(h * m_volume_meter_height));
+            m_vol_meter = std::make_unique<MixerMeter>(src, 10, 10, int(h * m_volume_meter_height));
         }
-        SetSource(src.Get());
+        SetSource(src);
+        obs_source_release(src); // Release the reference from obs_get_source_by_name
     }
 }
 
@@ -202,15 +203,17 @@ void SourceItem::ReadFromJson(QJsonObject const& Obj)
     if (Obj["volume_meter_y"].isDouble())
         m_volume_meter_y = Obj["volume_meter_y"].toDouble(10);
 
-    OBSSourceAutoRelease src = obs_get_source_by_name(qt_to_utf8(Obj["source"].toString()));
-    if (src)
-        SetSource(src.Get());
-    else
+    obs_source_t* src = obs_get_source_by_name(qt_to_utf8(Obj["source"].toString()));
+    if (src) {
+        SetSource(src);
+        obs_source_release(src); // Release the reference from obs_get_source_by_name
+    } else {
         SetSource(placeholder_source);
+    }
 
-    if (src.Get() && m_toggle_volume->isChecked()) {
+    if (src && m_toggle_volume->isChecked()) {
         auto h = obs_source_get_height(src);
-        m_vol_meter = std::make_unique<MixerMeter>(src.Get(), m_volume_meter_x, m_volume_meter_y, int(h * m_volume_meter_height));
+        m_vol_meter = std::make_unique<MixerMeter>(src, m_volume_meter_x, m_volume_meter_y, int(h * m_volume_meter_height));
     }
 }
 
