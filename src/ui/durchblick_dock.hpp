@@ -10,13 +10,14 @@ class DurchblickDock : public QWidget {
 
 private:
     Durchblick* db;
+    bool m_is_multiview_dock;  // True if this dock is managed by a multiview
 
 protected:
     void closeEvent(QCloseEvent*) override;
     void showEvent(QShowEvent*) override;
 
 public:
-    DurchblickDock(QWidget* parent = nullptr);
+    DurchblickDock(QWidget* parent = nullptr, bool isMultiviewDock = false);
     ~DurchblickDock();
 
     Durchblick* GetDurchblick() { return db; }

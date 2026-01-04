@@ -61,7 +61,7 @@ MultiviewInstance::MultiviewInstance(const QString& name, const QString& id, boo
         const auto main_window = static_cast<QMainWindow*>(obs_frontend_get_main_window());
         if (main_window) {
             obs_frontend_push_ui_translation(obs_module_get_string);
-            dock = new DurchblickDock((QWidget*)main_window);
+            dock = new DurchblickDock((QWidget*)main_window, true);  // true = multiview dock
             dock->setWindowTitle(name);
             // Register dock with unique ID
             QString dockId = QString("durchblick_") + id;

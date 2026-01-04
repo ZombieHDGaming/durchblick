@@ -17,6 +17,12 @@ void DurchblickDock::closeEvent(QCloseEvent* e)
 void DurchblickDock::showEvent(QShowEvent* e)
 {
     QWidget::showEvent(e);
+
+    // For multiview docks, the display and layout are already managed by MultiviewInstance
+    // Only handle legacy single dock behavior
+    if (m_is_multiview_dock)
+        return;
+
     if (!e->spontaneous()) {
         auto cfg = Config::LoadLayoutsForCurrentSceneCollection();
         db->GetLayout()->DeleteLayout();
@@ -34,13 +40,14 @@ void DurchblickDock::showEvent(QShowEvent* e)
     }
 }
 
-DurchblickDock::DurchblickDock(QWidget* parent)
+DurchblickDock::DurchblickDock(QWidget* parent, bool isMultiviewDock)
     : QWidget(parent)
     , db(new Durchblick(this, Qt::Widget))
+    , m_is_multiview_dock(isMultiviewDock)
 {
     setWindowTitle("Durchblick");
     setObjectName("DurchblickDock");
-    
+
     auto* mainLayout = new QVBoxLayout(this);
     mainLayout->addWidget(db);
 
