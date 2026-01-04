@@ -29,7 +29,6 @@ class NewMultiviewDialog : public QDialog {
 
     QLineEdit* m_name_edit;
     QCheckBox* m_persistent_checkbox;
-    QCheckBox* m_docked_checkbox;
     QDialogButtonBox* m_button_box;
 
 private slots:

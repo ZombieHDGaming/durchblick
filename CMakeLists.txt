@@ -116,8 +116,6 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ./src/util/volume_meter.hpp
     ./src/util/mixer_renderer.cpp
     ./src/util/mixer_renderer.hpp
-    ./src/ui/durchblick_dock.hpp
-    ./src/ui/durchblick_dock.cpp
     ./src/ui/durchblick.hpp
     ./src/ui/durchblick.cpp
     ./src/ui/qt_display.hpp

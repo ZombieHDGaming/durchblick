@@ -23,7 +23,6 @@
 #include <QMenu>
 
 class Durchblick;
-class DurchblickDock;
 
 namespace Config {
 
@@ -31,18 +30,15 @@ struct MultiviewInstance {
     QString name;
     QString id;
     Durchblick* window;
-    DurchblickDock* dock;  // Optional dock widget for this multiview
     bool isPersistent;
-    bool isDocked;  // Whether this multiview should be shown as a dock
 
-    MultiviewInstance(const QString& name, const QString& id, bool persistent = true, bool docked = false);
+    MultiviewInstance(const QString& name, const QString& id, bool persistent = true);
     ~MultiviewInstance();
 };
 
 extern QJsonObject LoadLayoutsForCurrentSceneCollection();
 
 extern Durchblick* db; // Legacy default window - kept for backward compatibility
-extern DurchblickDock* dbdock;
 extern QMap<QString, MultiviewInstance*> multiviews;
 extern QMenu* toolsMenu;
 extern bool isLoading; // Flag to prevent saves during load
@@ -57,7 +53,7 @@ extern void Save();
 extern void Cleanup();
 
 // Multiview management functions
-extern MultiviewInstance* CreateMultiview(const QString& name, bool persistent = true, bool docked = false);
+extern MultiviewInstance* CreateMultiview(const QString& name, bool persistent = true);
 extern void RemoveMultiview(const QString& id);
 extern MultiviewInstance* GetMultiview(const QString& id);
 extern QList<QString> GetMultiviewIds();

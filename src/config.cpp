@@ -39,7 +39,6 @@
 namespace Config {
 
 Durchblick* db = nullptr;
-DurchblickDock* dbdock = nullptr;
 QMap<QString, MultiviewInstance*> multiviews;
 QMenu* toolsMenu = nullptr;
 bool isLoading = false;
@@ -50,65 +49,20 @@ static bool isShuttingDown = false;
 
 QJsonObject Cfg;
 
-MultiviewInstance::MultiviewInstance(const QString& name, const QString& id, bool persistent, bool docked)
+MultiviewInstance::MultiviewInstance(const QString& name, const QString& id, bool persistent)
     : name(name)
     , id(id)
     , window(nullptr)
-    , dock(nullptr)
     , isPersistent(persistent)
-    , isDocked(docked)
 {
-    if (docked) {
-        // Create as dock widget
-        const auto main_window = static_cast<QMainWindow*>(obs_frontend_get_main_window());
-        if (main_window) {
-            obs_frontend_push_ui_translation(obs_module_get_string);
-            // Create dock with no parent initially - OBS will parent it when adding
-            dock = new DurchblickDock(nullptr, true);  // true = multiview dock
-            dock->setWindowTitle(name);
-            dock->setObjectName(name);  // Set object name for OBS to identify it
-
-            // Register dock with unique ID
-            QString dockId = QString("durchblick_") + id;
-            QByteArray dockIdBytes = dockId.toUtf8();
-            QByteArray nameBytes = name.toUtf8();
-            obs_frontend_add_dock_by_id(dockIdBytes.constData(), nameBytes.constData(), dock);
-            obs_frontend_pop_ui_translation();
-
-            window = dock->GetDurchblick();
-            blog(LOG_INFO, "[durchblick] Created docked multiview '%s' with id '%s'", qt_to_utf8(name), qt_to_utf8(id));
-        } else {
-            blog(LOG_WARNING, "[durchblick] Cannot create docked multiview '%s' - main window not available, creating as standalone window instead", qt_to_utf8(name));
-            // Fallback to standalone window if main window isn't available
-            window = new Durchblick();
-            isDocked = false;  // Update flag to reflect actual state
-        }
-    } else {
-        // Create as standalone window
-        window = new Durchblick();
-    }
+    // Create as standalone window
+    window = new Durchblick();
+    window->setWindowTitle(name);
 }
 
 MultiviewInstance::~MultiviewInstance()
 {
-    if (dock) {
-        // Block signals during destruction to prevent events from triggering
-        dock->blockSignals(true);
-
-        // Delete the dock first, which will clean up the Durchblick window
-        delete dock;
-        dock = nullptr;
-        window = nullptr; // Window is owned by dock
-
-        // Only unregister dock if not shutting down
-        // During shutdown, the OBS frontend may already be destroyed
-        // Do this AFTER deletion to avoid triggering events on a being-deleted object
-        if (!isShuttingDown) {
-            QString dockId = QString("durchblick_") + id;
-            QByteArray dockIdBytes = dockId.toUtf8();
-            obs_frontend_remove_dock(dockIdBytes.constData());
-        }
-    } else if (window) {
+    if (window) {
         delete window;
         window = nullptr;
     }
@@ -198,8 +152,6 @@ static void event_callback(enum obs_frontend_event event, void*)
             if (it.value() && it.value()->window)
                 it.value()->window->GetLayout()->Clear();
         }
-        if (dbdock && dbdock->GetDurchblick())
-            dbdock->GetDurchblick()->GetLayout()->Clear();
     } else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED) {
         // Only reload if initial load is done (not during startup)
         if (initialLoadDone) {
@@ -254,28 +206,15 @@ void Load()
         auto name = mvData["name"].toString();
         bool persistent = mvData["persistent"].toBool(true);
         bool visible = mvData["visible"].toBool(false);
-        bool docked = mvData["docked"].toBool(false);
 
-        blog(LOG_INFO, "[durchblick] Creating multiview '%s' (id: %s, docked: %s)", qt_to_utf8(name), qt_to_utf8(id), docked ? "true" : "false");
-        auto* mv = new MultiviewInstance(name, id, persistent, docked);
+        blog(LOG_INFO, "[durchblick] Creating multiview '%s' (id: %s)", qt_to_utf8(name), qt_to_utf8(id));
+        auto* mv = new MultiviewInstance(name, id, persistent);
         if (mv->window) {
             blog(LOG_INFO, "[durchblick] Initializing multiview '%s'", qt_to_utf8(name));
-            mv->window->setWindowTitle(name);
-
             // Load layout data
             mv->window->Load(mvData["layout"].toObject());
-
-            // Set visibility - docks handle their own visibility
-            if (!docked) {
-                mv->window->setVisible(visible);
-            } else if (mv->dock) {
-                // For docks, show/hide the parent QDockWidget created by OBS
-                if (mv->dock->parentWidget()) {
-                    mv->dock->parentWidget()->setVisible(visible);
-                } else {
-                    mv->dock->setVisible(visible);
-                }
-            }
+            // Set visibility
+            mv->window->setVisible(visible);
         } else {
             blog(LOG_ERROR, "[durchblick] Failed to create window for multiview '%s'", qt_to_utf8(name));
         }
@@ -296,13 +235,6 @@ void Load()
         db->GetLayout()->CreateDefaultLayout();
     }
 
-    // Migrate legacy dbdock if it exists (backward compatibility)
-    if (dbdock) {
-        auto dockLayout = cfg["dock"].toObject();
-        if (!dockLayout.isEmpty()) {
-            dbdock->GetDurchblick()->Load(dockLayout);
-        }
-    }
     isLoading = false;
     blog(LOG_INFO, "[durchblick] Config::Load() finished");
 }
@@ -329,17 +261,9 @@ void Save()
         QJsonObject mvData {};
         mvData["name"] = mv->name;
         mvData["persistent"] = mv->isPersistent;
-        mvData["docked"] = mv->isDocked;
 
-        // Get visibility from window or dock
-        if (mv->isDocked && mv->dock) {
-            // For docks, check the parent QDockWidget's visibility
-            if (mv->dock->parentWidget()) {
-                mvData["visible"] = mv->dock->parentWidget()->isVisible();
-            } else {
-                mvData["visible"] = mv->dock->isVisible();
-            }
-        } else if (mv->window) {
+        // Get visibility from window
+        if (mv->window) {
             mvData["visible"] = mv->window->isVisible();
         }
 
@@ -352,13 +276,6 @@ void Save()
         multiviewsObj[mv->id] = mvData;
     }
     sceneCollectionData["multiviews"] = multiviewsObj;
-
-    // Save legacy dock layout (backward compatibility)
-    if (dbdock) {
-        QJsonObject dockLayout {};
-        dbdock->GetDurchblick()->Save(dockLayout);
-        sceneCollectionData["dock"] = dockLayout;
-    }
 
     Cfg[utf8_to_qt(sc.Get())] = sceneCollectionData;
 
@@ -399,14 +316,9 @@ void Cleanup()
     // Note: db might point to a multiview window, so don't delete it here
     // It will be deleted when multiviews are cleaned up
     db = nullptr;
-
-    if (dbdock) {
-        delete dbdock;
-        dbdock = nullptr;
-    }
 }
 
-MultiviewInstance* CreateMultiview(const QString& name, bool persistent, bool docked)
+MultiviewInstance* CreateMultiview(const QString& name, bool persistent)
 {
     // Generate unique ID
     QString id = name.toLower().replace(" ", "_");
@@ -416,9 +328,8 @@ MultiviewInstance* CreateMultiview(const QString& name, bool persistent, bool do
         id = baseId + "_" + QString::number(counter++);
     }
 
-    auto* mv = new MultiviewInstance(name, id, persistent, docked);
+    auto* mv = new MultiviewInstance(name, id, persistent);
     if (mv->window) {
-        mv->window->setWindowTitle(name);
         mv->window->GetLayout()->CreateDefaultLayout();
     }
 
