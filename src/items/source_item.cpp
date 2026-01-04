@@ -104,8 +104,10 @@ SourceItem::SourceItem(Layout* parent, int x, int y, int w, int h)
 
 SourceItem::~SourceItem()
 {
-    if (m_src)
+    if (m_src) {
         obs_source_dec_showing(m_src);
+        removedSignal.Disconnect();
+    }
 }
 
 QWidget* SourceItem::GetConfigWidget()

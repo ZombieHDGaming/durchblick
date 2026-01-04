@@ -138,8 +138,13 @@ static void event_callback(enum obs_frontend_event event, void*)
         // before source/scene data was cleared
         Cleanup();
     } else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING) {
-        if (db)
-            db->GetLayout()->Clear();
+        // Clear all multiview layouts before scene collection changes
+        for (auto it = multiviews.begin(); it != multiviews.end(); ++it) {
+            if (it.value() && it.value()->window)
+                it.value()->window->GetLayout()->Clear();
+        }
+        if (dbdock && dbdock->GetDurchblick())
+            dbdock->GetDurchblick()->GetLayout()->Clear();
     } else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED) {
         Load();
     }
@@ -168,6 +173,9 @@ void Load()
         delete it.value();
     }
     multiviews.clear();
+
+    // Reset db pointer as it may have pointed to a deleted multiview
+    db = nullptr;
 
     // Load multiviews
     auto multiviewsObj = cfg["multiviews"].toObject();
