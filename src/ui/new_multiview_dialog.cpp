@@ -19,6 +19,7 @@
 #include "new_multiview_dialog.hpp"
 #include "../config.hpp"
 #include "durchblick.hpp"
+#include "durchblick_dock.hpp"
 #include "../util/util.h"
 #include <QApplication>
 #include <QLabel>
