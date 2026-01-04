@@ -1,4 +1,5 @@
 #include "source_item.hpp"
+#include "../config.hpp"
 #include "../layout.hpp"
 #include "../util/display_helpers.hpp"
 #include <QApplication>
@@ -92,6 +93,11 @@ SourceItem::SourceItem(Layout* parent, int x, int y, int w, int h)
     SetSource(placeholder_source);
     m_toggle_label->setChecked(true);
     connect(m_toggle_volume, SIGNAL(toggled(bool)), this, SLOT(VolumeToggled(bool)));
+
+    // Connect toggle actions to trigger saves when changed
+    connect(m_toggle_safe_borders, &QAction::toggled, [] { Config::Save(); });
+    connect(m_toggle_label, &QAction::toggled, [] { Config::Save(); });
+    connect(m_toggle_volume, &QAction::toggled, [] { Config::Save(); });
 }
 
 SourceItem::~SourceItem()

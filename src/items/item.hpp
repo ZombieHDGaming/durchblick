@@ -94,18 +94,9 @@ public:
         }
     };
 
-    LayoutItem(Layout* parent, int x, int y, int w = 1, int h = 1)
-        : QObject((QObject*)parent)
-        , m_layout(parent)
-    {
-        m_cell = { x, y, w, h };
-        m_toggle_stretch = new QAction(T_WIDGET_STRETCH, this);
-        m_toggle_stretch->setCheckable(true);
-    }
+    LayoutItem(Layout* parent, int x, int y, int w = 1, int h = 1);
 
-    virtual ~LayoutItem()
-    {
-    }
+    virtual ~LayoutItem();
 
     virtual void WriteToJson(QJsonObject& Obj)
     {

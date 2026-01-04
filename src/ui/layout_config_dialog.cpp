@@ -17,6 +17,7 @@
  *************************************************************************/
 
 #include "layout_config_dialog.hpp"
+#include "../config.hpp"
 #include "../layout.hpp"
 #include "../util/util.h"
 #include "durchblick.hpp"
@@ -34,6 +35,7 @@ void LayoutConfigDialog::OKClicked()
 #endif
 
     m_durchblick->SetHideCursor(m_hide_cursor->isChecked());
+    Config::Save();
     hide();
 }
 

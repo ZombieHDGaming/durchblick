@@ -45,10 +45,6 @@ QMenu* toolsMenu = nullptr;
 
 QJsonObject Cfg;
 
-// Store callback pointers so we can remove them later
-static void* save_callback_handle = nullptr;
-static void* event_callback_handle = nullptr;
-
 MultiviewInstance::MultiviewInstance(const QString& name, const QString& id, bool persistent)
     : name(name)
     , id(id)
@@ -139,11 +135,8 @@ static void event_callback(enum obs_frontend_event event, void*)
     } else if (event == OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN) {
         // I couldn't find another event that was on exit and
         // before source/scene data was cleared
-
-        Save();
         Cleanup();
     } else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING) {
-        Save(); // Save current layout
         if (db)
             db->GetLayout()->Clear();
     } else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED) {
@@ -153,20 +146,14 @@ static void event_callback(enum obs_frontend_event event, void*)
 
 void RegisterCallbacks()
 {
-    save_callback_handle = obs_frontend_add_save_callback(save_callback, nullptr);
-    event_callback_handle = obs_frontend_add_event_callback(event_callback, nullptr);
+    obs_frontend_add_save_callback(save_callback, nullptr);
+    obs_frontend_add_event_callback(event_callback, nullptr);
 }
 
 void RemoveCallbacks()
 {
-    if (save_callback_handle) {
-        obs_frontend_remove_save_callback(save_callback, nullptr);
-        save_callback_handle = nullptr;
-    }
-    if (event_callback_handle) {
-        obs_frontend_remove_event_callback(event_callback, nullptr);
-        event_callback_handle = nullptr;
-    }
+    obs_frontend_remove_save_callback(save_callback, nullptr);
+    obs_frontend_remove_event_callback(event_callback, nullptr);
 }
 
 void Load()

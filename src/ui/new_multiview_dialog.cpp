@@ -45,6 +45,7 @@ void NewMultiviewDialog::OKClicked()
         mv->window->activateWindow();
     }
 
+    Config::Save();
     accept();
 }
 

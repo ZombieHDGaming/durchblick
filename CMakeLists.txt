@@ -132,6 +132,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ./src/ui/manage_multiviews_dialog.hpp
     ./src/items/registry.cpp
     ./src/items/registry.hpp
+    ./src/items/item.cpp
     ./src/items/item.hpp
     ./src/items/scene_item.cpp
     ./src/items/scene_item.hpp

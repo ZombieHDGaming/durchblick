@@ -65,6 +65,7 @@ void ManageMultiviewsDialog::OnRenameWindow()
             mv->window->setWindowTitle(newName.trimmed());
         }
         Config::UpdateToolsMenu();
+        Config::Save();
         RefreshList();
     }
 }
@@ -86,6 +87,7 @@ void ManageMultiviewsDialog::OnDeleteWindow()
 
     if (result == QMessageBox::Yes) {
         Config::RemoveMultiview(id);
+        Config::Save();
         RefreshList();
     }
 }
@@ -117,6 +119,7 @@ void ManageMultiviewsDialog::OnDuplicateWindow()
             newMv->window->Load(sourceLayout);
         }
 
+        Config::Save();
         RefreshList();
     }
 }
