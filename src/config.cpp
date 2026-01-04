@@ -18,7 +18,6 @@
 
 #include "config.hpp"
 #include "ui/durchblick.hpp"
-#include "ui/durchblick_dock.hpp"
 #include "ui/new_multiview_dialog.hpp"
 #include "ui/manage_multiviews_dialog.hpp"
 #include "util/util.h"

@@ -19,7 +19,6 @@
 #include "durchblick.hpp"
 #include "../config.hpp"
 #include "../util/platform_util.hpp"
-#include "durchblick_dock.hpp"
 #include "obs.hpp"
 #include <QApplication>
 #include <QIcon>
