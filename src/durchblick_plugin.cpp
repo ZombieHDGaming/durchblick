@@ -57,7 +57,8 @@ void obs_module_post_load()
 
     reg.detach();
     Config::RegisterCallbacks();
-    Config::Load();
+    // Don't load here - wait for OBS_FRONTEND_EVENT_FINISHED_LOADING
+    // This ensures the frontend is ready to accept dock registrations
 }
 
 void obs_module_unload()
