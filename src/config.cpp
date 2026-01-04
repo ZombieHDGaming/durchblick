@@ -88,16 +88,22 @@ MultiviewInstance::MultiviewInstance(const QString& name, const QString& id, boo
 MultiviewInstance::~MultiviewInstance()
 {
     if (dock) {
+        // Block signals during destruction to prevent events from triggering
+        dock->blockSignals(true);
+
+        // Delete the dock first, which will clean up the Durchblick window
+        delete dock;
+        dock = nullptr;
+        window = nullptr; // Window is owned by dock
+
         // Only unregister dock if not shutting down
         // During shutdown, the OBS frontend may already be destroyed
+        // Do this AFTER deletion to avoid triggering events on a being-deleted object
         if (!isShuttingDown) {
             QString dockId = QString("durchblick_") + id;
             QByteArray dockIdBytes = dockId.toUtf8();
             obs_frontend_remove_dock(dockIdBytes.constData());
         }
-        delete dock;
-        dock = nullptr;
-        window = nullptr; // Window is owned by dock
     } else if (window) {
         delete window;
         window = nullptr;
@@ -251,9 +257,13 @@ void Load()
         if (mv->window) {
             blog(LOG_INFO, "[durchblick] Initializing multiview '%s'", qt_to_utf8(name));
             mv->window->setWindowTitle(name);
-            // Force display creation even if window will be hidden
-            // This ensures rendering callbacks are properly connected
-            mv->window->CreateDisplay(true);
+
+            // For standalone windows, force display creation
+            // For docked widgets, display will be created in showEvent
+            if (!docked) {
+                mv->window->CreateDisplay(true);
+            }
+
             mv->window->Load(mvData["layout"].toObject());
 
             // Set visibility - docks handle their own visibility
@@ -400,7 +410,13 @@ MultiviewInstance* CreateMultiview(const QString& name, bool persistent, bool do
     auto* mv = new MultiviewInstance(name, id, persistent, docked);
     if (mv->window) {
         mv->window->setWindowTitle(name);
-        mv->window->CreateDisplay(true);
+
+        // For standalone windows, create display immediately
+        // For docked widgets, display will be created in showEvent
+        if (!docked) {
+            mv->window->CreateDisplay(true);
+        }
+
         mv->window->GetLayout()->CreateDefaultLayout();
     }
 

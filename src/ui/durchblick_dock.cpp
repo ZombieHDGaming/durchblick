@@ -7,6 +7,15 @@
 void DurchblickDock::closeEvent(QCloseEvent* e)
 {
     e->accept();
+
+    // For multiview docks, lifecycle is managed by MultiviewInstance
+    // Don't perform cleanup operations during close
+    if (m_is_multiview_dock) {
+        hide();
+        return;
+    }
+
+    // Legacy dock behavior
     db->OnClose();
     Config::Save();
     db->GetLayout()->DeleteLayout();
@@ -18,11 +27,18 @@ void DurchblickDock::showEvent(QShowEvent* e)
 {
     QWidget::showEvent(e);
 
-    // For multiview docks, the display and layout are already managed by MultiviewInstance
-    // Only handle legacy single dock behavior
-    if (m_is_multiview_dock)
+    // For multiview docks, ensure display is created when shown
+    if (m_is_multiview_dock) {
+        if (!e->spontaneous() && db) {
+            // Ensure the display is created now that the window is being shown
+            if (!db->GetDisplay()) {
+                db->CreateDisplay(true);
+            }
+        }
         return;
+    }
 
+    // Legacy single dock behavior
     if (!e->spontaneous()) {
         auto cfg = Config::LoadLayoutsForCurrentSceneCollection();
         db->GetLayout()->DeleteLayout();
