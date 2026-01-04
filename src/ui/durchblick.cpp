@@ -272,10 +272,14 @@ Durchblick::Durchblick(QWidget* widget, Qt::WindowType t)
     connect(this, &OBSQTDisplay::DisplayResized, this, &Durchblick::Resize);
 
     m_ready = true;
-    show();
 
-    // We need it here to allow keyboard input in X11 to listen to Escape
-    activateWindow();
+    // Only call show() for standalone windows, not for embedded widgets
+    if (!widget) {
+        show();
+        // We need it here to allow keyboard input in X11 to listen to Escape
+        activateWindow();
+    }
+
     Update();
     // Calculate initial layout values
     auto s = size() * devicePixelRatioF();
@@ -301,8 +305,18 @@ void Durchblick::OnClose()
 void Durchblick::RenderLayout(void* data, uint32_t cx, uint32_t cy)
 {
     auto* w = (Durchblick*)data;
-    if (!w->m_ready || !w->isVisible())
+    if (!w->m_ready)
         return;
+
+    // For embedded widgets (docked mode), check parent visibility
+    // For standalone windows, check own visibility
+    if (w->parentWidget()) {
+        if (!w->parentWidget()->isVisible())
+            return;
+    } else if (!w->isVisible()) {
+        return;
+    }
+
     w->m_layout.Render(w->m_fw, w->m_fh, cx, cy);
 }
 

@@ -46,6 +46,7 @@ bool isLoading = false;
 static bool callbacksRegistered = false;
 static bool cleanedUp = false;
 static bool initialLoadDone = false;
+static bool isShuttingDown = false;
 
 QJsonObject Cfg;
 
@@ -87,10 +88,13 @@ MultiviewInstance::MultiviewInstance(const QString& name, const QString& id, boo
 MultiviewInstance::~MultiviewInstance()
 {
     if (dock) {
-        // Dock widget deletion will handle the Durchblick window
-        QString dockId = QString("durchblick_") + id;
-        QByteArray dockIdBytes = dockId.toUtf8();
-        obs_frontend_remove_dock(dockIdBytes.constData());
+        // Only unregister dock if not shutting down
+        // During shutdown, the OBS frontend may already be destroyed
+        if (!isShuttingDown) {
+            QString dockId = QString("durchblick_") + id;
+            QByteArray dockIdBytes = dockId.toUtf8();
+            obs_frontend_remove_dock(dockIdBytes.constData());
+        }
         delete dock;
         dock = nullptr;
         window = nullptr; // Window is owned by dock
@@ -364,6 +368,7 @@ void Cleanup()
     }
 
     blog(LOG_INFO, "[durchblick] Cleanup called");
+    isShuttingDown = true;
     cleanedUp = true;
 
     // Clean up multiviews

@@ -30,6 +30,16 @@
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("durchblick", "en-US")
 
+MODULE_EXPORT const char *obs_module_description(void)
+{
+	return "Dynamic Multiviews";
+}
+
+MODULE_EXPORT const char *obs_module_name(void)
+{
+	return "Insight";
+}
+
 bool obs_module_load()
 {
     binfo("Loading v%s-%s (%s) build time %s", PLUGIN_VERSION, GIT_BRANCH, GIT_COMMIT_HASH, BUILD_TIME);
