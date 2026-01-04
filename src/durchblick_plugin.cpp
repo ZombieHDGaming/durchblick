@@ -46,7 +46,7 @@ bool obs_module_load()
 
     Registry::RegisterCustomWidgetProcedure();
 
-    // Create Durchblick menu action and submenu
+    // Create Command Center menu action and submenu
     QAction* action = static_cast<QAction*>(obs_frontend_add_tools_menu_qaction(T_MENU_DURCHBLICK));
     Config::toolsMenu = new QMenu();
     action->setMenu(Config::toolsMenu);

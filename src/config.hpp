@@ -56,6 +56,7 @@ extern void Cleanup();
 extern MultiviewInstance* CreateMultiview(const QString& name, bool persistent = true);
 extern void RemoveMultiview(const QString& id);
 extern MultiviewInstance* GetMultiview(const QString& id);
+extern MultiviewInstance* GetMultiviewByWindow(Durchblick* window);
 extern QList<QString> GetMultiviewIds();
 extern void UpdateToolsMenu();
 extern void ShowNewMultiviewDialog();

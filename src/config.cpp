@@ -162,7 +162,7 @@ static void event_callback(enum obs_frontend_event event, void*)
 void RegisterCallbacks()
 {
     if (callbacksRegistered) {
-        blog(LOG_WARNING, "[durchblick] RegisterCallbacks called when callbacks already registered");
+        blog(LOG_WARNING, "[Command Center] RegisterCallbacks called when callbacks already registered");
         return;
     }
     obs_frontend_add_save_callback(save_callback, nullptr);
@@ -173,7 +173,7 @@ void RegisterCallbacks()
 void RemoveCallbacks()
 {
     if (!callbacksRegistered) {
-        blog(LOG_WARNING, "[durchblick] RemoveCallbacks called when callbacks not registered");
+        blog(LOG_WARNING, "[Command Center] RemoveCallbacks called when callbacks not registered");
         return;
     }
     obs_frontend_remove_save_callback(save_callback, nullptr);
@@ -183,7 +183,7 @@ void RemoveCallbacks()
 
 void Load()
 {
-    blog(LOG_INFO, "[durchblick] Config::Load() called");
+    blog(LOG_INFO, "[Command Center] Config::Load() called");
     isLoading = true;
     auto cfg = LoadLayoutsForCurrentSceneCollection();
 
@@ -198,7 +198,7 @@ void Load()
 
     // Load multiviews
     auto multiviewsObj = cfg["multiviews"].toObject();
-    blog(LOG_INFO, "[durchblick] Loading %d multiviews", multiviewsObj.size());
+    blog(LOG_INFO, "[Command Center] Loading %d multiviews", multiviewsObj.size());
     for (auto it = multiviewsObj.begin(); it != multiviewsObj.end(); ++it) {
         auto mvData = it.value().toObject();
         auto id = it.key();
@@ -206,16 +206,16 @@ void Load()
         bool persistent = mvData["persistent"].toBool(true);
         bool visible = mvData["visible"].toBool(false);
 
-        blog(LOG_INFO, "[durchblick] Creating multiview '%s' (id: %s)", qt_to_utf8(name), qt_to_utf8(id));
+        blog(LOG_INFO, "[Command Center] Creating multiview '%s' (id: %s)", qt_to_utf8(name), qt_to_utf8(id));
         auto* mv = new MultiviewInstance(name, id, persistent);
         if (mv->window) {
-            blog(LOG_INFO, "[durchblick] Initializing multiview '%s'", qt_to_utf8(name));
+            blog(LOG_INFO, "[Command Center] Initializing multiview '%s'", qt_to_utf8(name));
             // Load layout data
             mv->window->Load(mvData["layout"].toObject());
             // Set visibility
             mv->window->setVisible(visible);
         } else {
-            blog(LOG_ERROR, "[durchblick] Failed to create window for multiview '%s'", qt_to_utf8(name));
+            blog(LOG_ERROR, "[Command Center] Failed to create window for multiview '%s'", qt_to_utf8(name));
         }
 
         multiviews[id] = mv;
@@ -235,16 +235,16 @@ void Load()
     }
 
     isLoading = false;
-    blog(LOG_INFO, "[durchblick] Config::Load() finished");
+    blog(LOG_INFO, "[Command Center] Config::Load() finished");
 }
 
 void Save()
 {
     if (isLoading) {
-        blog(LOG_WARNING, "[durchblick] Config::Save() called during load, ignoring to prevent overwriting loaded data");
+        blog(LOG_WARNING, "[Command Center] Config::Save() called during load, ignoring to prevent overwriting loaded data");
         return;
     }
-    blog(LOG_INFO, "[durchblick] Config::Save() called");
+    blog(LOG_INFO, "[Command Center] Config::Save() called");
     QJsonObject sceneCollectionData {};
     BPtr<char> path = obs_module_config_path("layout.json");
     BPtr<char> sc = obs_frontend_get_current_scene_collection();
@@ -298,11 +298,11 @@ void Save()
 void Cleanup()
 {
     if (cleanedUp) {
-        blog(LOG_INFO, "[durchblick] Cleanup called when already cleaned up, ignoring");
+        blog(LOG_INFO, "[Command Center] Cleanup called when already cleaned up, ignoring");
         return;
     }
 
-    blog(LOG_INFO, "[durchblick] Cleanup called");
+    blog(LOG_INFO, "[Command Center] Cleanup called");
     isShuttingDown = true;
     cleanedUp = true;
 
@@ -355,6 +355,16 @@ void RemoveMultiview(const QString& id)
 MultiviewInstance* GetMultiview(const QString& id)
 {
     return multiviews.value(id, nullptr);
+}
+
+MultiviewInstance* GetMultiviewByWindow(Durchblick* window)
+{
+    for (auto it = multiviews.begin(); it != multiviews.end(); ++it) {
+        if (it.value()->window == window) {
+            return it.value();
+        }
+    }
+    return nullptr;
 }
 
 QList<QString> GetMultiviewIds()

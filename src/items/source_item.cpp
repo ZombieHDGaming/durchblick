@@ -166,7 +166,7 @@ void SourceItem::SetSource(obs_source_t* src)
     m_src = src;
     if (m_src) {
         const char* src_name = obs_source_get_name(m_src);
-        blog(LOG_INFO, "[durchblick] SetSource called with: %s", src_name);
+        blog(LOG_INFO, "[Command Center] SetSource called with: %s", src_name);
 
         if (m_vol_meter)
             m_vol_meter->SetSource(src);
@@ -181,7 +181,7 @@ void SourceItem::SetSource(obs_source_t* src)
             m_label = CreateLabel(src_name, h / 1.5, m_font_scale);
         }
     } else {
-        blog(LOG_INFO, "[durchblick] SetSource called with nullptr");
+        blog(LOG_INFO, "[Command Center] SetSource called with nullptr");
     }
 }
 
@@ -221,7 +221,7 @@ void SourceItem::ReadFromJson(QJsonObject const& Obj)
         if (src) {
             SetSource(src);
         } else {
-            blog(LOG_WARNING, "[durchblick] Source '%s' not found during load, using placeholder", qt_to_utf8(source_name));
+            blog(LOG_WARNING, "[Command Center] Source '%s' not found during load, using placeholder", qt_to_utf8(source_name));
             SetSource(placeholder_source);
         }
     } else {
@@ -246,9 +246,9 @@ void SourceItem::WriteToJson(QJsonObject& Obj)
     if (m_src && m_src != placeholder_source) {
         const char* source_name = obs_source_get_name(m_src);
         Obj["source"] = utf8_to_qt(source_name);
-        blog(LOG_INFO, "[durchblick] Saving source item with source: %s", source_name);
+        blog(LOG_INFO, "[Command Center] Saving source item with source: %s", source_name);
     } else {
-        blog(LOG_INFO, "[durchblick] Saving source item with placeholder (no source saved to JSON)");
+        blog(LOG_INFO, "[Command Center] Saving source item with placeholder (no source saved to JSON)");
     }
     Obj["show_safe_borders"] = m_toggle_safe_borders->isChecked();
     Obj["show_label"] = m_toggle_label->isChecked();

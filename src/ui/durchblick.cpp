@@ -85,10 +85,15 @@ void Durchblick::OpenFullScreenProjector()
     int monitor = sender()->property("monitor").toInt();
     SetMonitor(monitor);
 
-    if (monitor < 0) // Windowed
-        setWindowTitle("Durchblick");
-    else
-        setWindowTitle("Durchblick (" + T_FULLSCREEN + ")");
+    // Get multiview name
+    auto* mv = Config::GetMultiviewByWindow(this);
+    QString baseName = mv ? mv->name : "Command Center";
+
+    if (monitor < 0) { // Windowed
+        setWindowTitle(baseName);
+    } else {
+        setWindowTitle(baseName + " (" + T_FULLSCREEN + ")");
+    }
 }
 
 void Durchblick::OpenWindowedProjector()
@@ -104,7 +109,15 @@ void Durchblick::OpenWindowedProjector()
     }
 
     m_current_monitor = -1;
-    setWindowTitle("Durchblick");
+
+    // Restore window title to multiview name
+    auto* mv = Config::GetMultiviewByWindow(this);
+    if (mv) {
+        setWindowTitle(mv->name);
+    } else {
+        setWindowTitle("Command Center");
+    }
+
     m_screen = nullptr;
 }
 
@@ -240,7 +253,7 @@ Durchblick::Durchblick(QWidget* widget, Qt::WindowType t)
     : OBSQTDisplay(widget, t)
     , m_layout(this)
 {
-    setWindowTitle("Durchblick");
+    setWindowTitle("Command Center");
     SetWidgetVisibility(false);
 
 #ifdef __APPLE__
