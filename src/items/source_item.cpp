@@ -160,6 +160,9 @@ void SourceItem::SetSource(obs_source_t* src)
 
     m_src = src;
     if (m_src) {
+        const char* src_name = obs_source_get_name(m_src);
+        blog(LOG_INFO, "[durchblick] SetSource called with: %s", src_name);
+
         if (m_vol_meter)
             m_vol_meter->SetSource(src);
         removedSignal.Connect(obs_source_get_signal_handler(m_src), "remove",
@@ -170,8 +173,10 @@ void SourceItem::SetSource(obs_source_t* src)
             obs_get_video_info(&ovi);
 
             uint32_t h = ovi.base_height;
-            m_label = CreateLabel(obs_source_get_name(m_src), h / 1.5, m_font_scale);
+            m_label = CreateLabel(src_name, h / 1.5, m_font_scale);
         }
+    } else {
+        blog(LOG_INFO, "[durchblick] SetSource called with nullptr");
     }
 }
 

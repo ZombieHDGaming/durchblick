@@ -43,6 +43,7 @@ extern Durchblick* db; // Legacy default window - kept for backward compatibilit
 extern DurchblickDock* dbdock;
 extern QMap<QString, MultiviewInstance*> multiviews;
 extern QMenu* toolsMenu;
+extern bool isLoading; // Flag to prevent saves during load
 
 extern void RegisterCallbacks();
 extern void RemoveCallbacks();

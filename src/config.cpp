@@ -42,6 +42,7 @@ Durchblick* db = nullptr;
 DurchblickDock* dbdock = nullptr;
 QMap<QString, MultiviewInstance*> multiviews;
 QMenu* toolsMenu = nullptr;
+bool isLoading = false;
 
 QJsonObject Cfg;
 
@@ -158,6 +159,8 @@ void RemoveCallbacks()
 
 void Load()
 {
+    blog(LOG_INFO, "[durchblick] Config::Load() called");
+    isLoading = true;
     auto cfg = LoadLayoutsForCurrentSceneCollection();
 
     // Clear existing multiviews
@@ -219,10 +222,16 @@ void Load()
             dbdock->GetDurchblick()->GetLayout()->CreateDefaultLayout();
         }
     }
+    isLoading = false;
+    blog(LOG_INFO, "[durchblick] Config::Load() finished");
 }
 
 void Save()
 {
+    if (isLoading) {
+        blog(LOG_WARNING, "[durchblick] Config::Save() called during load, ignoring to prevent overwriting loaded data");
+        return;
+    }
     blog(LOG_INFO, "[durchblick] Config::Save() called");
     QJsonObject sceneCollectionData {};
     BPtr<char> path = obs_module_config_path("layout.json");
