@@ -445,8 +445,6 @@ void Durchblick::SetHideFromDisplayCapture(bool hide_from_display_capture)
 
 void Durchblick::SetWidgetVisibility(bool v)
 {
-    if (parent()) // The docked version has a window a parent which we want to hide instead
-        ((DurchblickDock*)parent())->setVisible(v);
-    else
-        setVisible(v);
+    // All multiview instances are now standalone windows
+    setVisible(v);
 }
