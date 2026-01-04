@@ -43,6 +43,8 @@ DurchblickDock* dbdock = nullptr;
 QMap<QString, MultiviewInstance*> multiviews;
 QMenu* toolsMenu = nullptr;
 bool isLoading = false;
+static bool callbacksRegistered = false;
+static bool cleanedUp = false;
 
 QJsonObject Cfg;
 
@@ -152,14 +154,24 @@ static void event_callback(enum obs_frontend_event event, void*)
 
 void RegisterCallbacks()
 {
+    if (callbacksRegistered) {
+        blog(LOG_WARNING, "[durchblick] RegisterCallbacks called when callbacks already registered");
+        return;
+    }
     obs_frontend_add_save_callback(save_callback, nullptr);
     obs_frontend_add_event_callback(event_callback, nullptr);
+    callbacksRegistered = true;
 }
 
 void RemoveCallbacks()
 {
+    if (!callbacksRegistered) {
+        blog(LOG_WARNING, "[durchblick] RemoveCallbacks called when callbacks not registered");
+        return;
+    }
     obs_frontend_remove_save_callback(save_callback, nullptr);
     obs_frontend_remove_event_callback(event_callback, nullptr);
+    callbacksRegistered = false;
 }
 
 void Load()
@@ -294,6 +306,14 @@ void Save()
 
 void Cleanup()
 {
+    if (cleanedUp) {
+        blog(LOG_INFO, "[durchblick] Cleanup called when already cleaned up, ignoring");
+        return;
+    }
+
+    blog(LOG_INFO, "[durchblick] Cleanup called");
+    cleanedUp = true;
+
     // Clean up multiviews
     for (auto it = multiviews.begin(); it != multiviews.end(); ++it) {
         delete it.value();
