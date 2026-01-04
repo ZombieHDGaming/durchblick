@@ -145,7 +145,7 @@ void SourceItem::LoadConfigFromWidget(QWidget* w)
             auto h = obs_source_get_height(src);
             m_vol_meter = std::make_unique<MixerMeter>(src.Get(), 10, 10, int(h * m_volume_meter_height));
         }
-        SetSource(src);
+        SetSource(src.Get());
     }
 }
 
@@ -204,7 +204,7 @@ void SourceItem::ReadFromJson(QJsonObject const& Obj)
 
     OBSSourceAutoRelease src = obs_get_source_by_name(qt_to_utf8(Obj["source"].toString()));
     if (src)
-        SetSource(src);
+        SetSource(src.Get());
     else
         SetSource(placeholder_source);
 
