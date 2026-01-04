@@ -223,6 +223,7 @@ void Load()
 
 void Save()
 {
+    blog(LOG_INFO, "[durchblick] Config::Save() called");
     QJsonObject sceneCollectionData {};
     BPtr<char> path = obs_module_config_path("layout.json");
     BPtr<char> sc = obs_frontend_get_current_scene_collection();

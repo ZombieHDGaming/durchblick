@@ -203,10 +203,18 @@ void SourceItem::ReadFromJson(QJsonObject const& Obj)
     if (Obj["volume_meter_y"].isDouble())
         m_volume_meter_y = Obj["volume_meter_y"].toDouble(10);
 
-    obs_source_t* src = obs_get_source_by_name(qt_to_utf8(Obj["source"].toString()));
-    if (src) {
-        SetSource(src);
-        // OBSSource smart pointer takes ownership, no need to release
+    QString source_name = Obj["source"].toString();
+    obs_source_t* src = nullptr;
+
+    if (!source_name.isEmpty()) {
+        src = obs_get_source_by_name(qt_to_utf8(source_name));
+        if (src) {
+            SetSource(src);
+            // OBSSource smart pointer takes ownership, no need to release
+        } else {
+            blog(LOG_WARNING, "[durchblick] Source '%s' not found during load, using placeholder", qt_to_utf8(source_name));
+            SetSource(placeholder_source);
+        }
     } else {
         SetSource(placeholder_source);
     }
@@ -220,8 +228,13 @@ void SourceItem::ReadFromJson(QJsonObject const& Obj)
 void SourceItem::WriteToJson(QJsonObject& Obj)
 {
     LayoutItem::WriteToJson(Obj);
-    if (m_src && m_src != placeholder_source)
-        Obj["source"] = utf8_to_qt(obs_source_get_name(m_src));
+    if (m_src && m_src != placeholder_source) {
+        const char* source_name = obs_source_get_name(m_src);
+        Obj["source"] = utf8_to_qt(source_name);
+        blog(LOG_INFO, "[durchblick] Saving source item with source: %s", source_name);
+    } else {
+        blog(LOG_INFO, "[durchblick] Saving source item with placeholder (no source saved to JSON)");
+    }
     Obj["show_safe_borders"] = m_toggle_safe_borders->isChecked();
     Obj["show_label"] = m_toggle_label->isChecked();
     Obj["show_volume"] = m_toggle_volume->isChecked();
