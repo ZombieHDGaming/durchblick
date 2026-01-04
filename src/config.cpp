@@ -64,7 +64,10 @@ MultiviewInstance::MultiviewInstance(const QString& name, const QString& id, boo
             dock = new DurchblickDock((QWidget*)main_window);
             dock->setWindowTitle(name);
             // Register dock with unique ID
-            obs_frontend_add_dock_by_id(qt_to_utf8(QString("durchblick_") + id), qt_to_utf8(name), dock);
+            QString dockId = QString("durchblick_") + id;
+            QByteArray dockIdBytes = dockId.toUtf8();
+            QByteArray nameBytes = name.toUtf8();
+            obs_frontend_add_dock_by_id(dockIdBytes.constData(), nameBytes.constData(), dock);
             obs_frontend_pop_ui_translation();
             window = dock->GetDurchblick();
         }
@@ -78,7 +81,9 @@ MultiviewInstance::~MultiviewInstance()
 {
     if (dock) {
         // Dock widget deletion will handle the Durchblick window
-        obs_frontend_remove_dock(qt_to_utf8(QString("durchblick_") + id));
+        QString dockId = QString("durchblick_") + id;
+        QByteArray dockIdBytes = dockId.toUtf8();
+        obs_frontend_remove_dock(dockIdBytes.constData());
         delete dock;
         dock = nullptr;
         window = nullptr; // Window is owned by dock
