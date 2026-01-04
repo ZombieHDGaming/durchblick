@@ -217,8 +217,7 @@ void SourceItem::ReadFromJson(QJsonObject const& Obj)
 void SourceItem::WriteToJson(QJsonObject& Obj)
 {
     LayoutItem::WriteToJson(Obj);
-    // Only save the source name if it's not the placeholder
-    if (m_src && m_src != placeholder_source)
+    if (m_src)
         Obj["source"] = utf8_to_qt(obs_source_get_name(m_src));
     Obj["show_safe_borders"] = m_toggle_safe_borders->isChecked();
     Obj["show_label"] = m_toggle_label->isChecked();
