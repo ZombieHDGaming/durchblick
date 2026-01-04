@@ -70,6 +70,12 @@ MultiviewInstance::MultiviewInstance(const QString& name, const QString& id, boo
             obs_frontend_add_dock_by_id(dockIdBytes.constData(), nameBytes.constData(), dock);
             obs_frontend_pop_ui_translation();
             window = dock->GetDurchblick();
+            blog(LOG_INFO, "[durchblick] Created docked multiview '%s' with id '%s'", qt_to_utf8(name), qt_to_utf8(id));
+        } else {
+            blog(LOG_WARNING, "[durchblick] Cannot create docked multiview '%s' - main window not available, creating as standalone window instead", qt_to_utf8(name));
+            // Fallback to standalone window if main window isn't available
+            window = new Durchblick();
+            isDocked = false;  // Update flag to reflect actual state
         }
     } else {
         // Create as standalone window
@@ -220,6 +226,7 @@ void Load()
 
     // Load multiviews
     auto multiviewsObj = cfg["multiviews"].toObject();
+    blog(LOG_INFO, "[durchblick] Loading %d multiviews", multiviewsObj.size());
     for (auto it = multiviewsObj.begin(); it != multiviewsObj.end(); ++it) {
         auto mvData = it.value().toObject();
         auto id = it.key();
@@ -228,8 +235,10 @@ void Load()
         bool visible = mvData["visible"].toBool(false);
         bool docked = mvData["docked"].toBool(false);
 
+        blog(LOG_INFO, "[durchblick] Creating multiview '%s' (id: %s, docked: %s)", qt_to_utf8(name), qt_to_utf8(id), docked ? "true" : "false");
         auto* mv = new MultiviewInstance(name, id, persistent, docked);
         if (mv->window) {
+            blog(LOG_INFO, "[durchblick] Initializing multiview '%s'", qt_to_utf8(name));
             mv->window->setWindowTitle(name);
             // Force display creation even if window will be hidden
             // This ensures rendering callbacks are properly connected
@@ -242,6 +251,8 @@ void Load()
             } else if (mv->dock) {
                 mv->dock->setVisible(visible);
             }
+        } else {
+            blog(LOG_ERROR, "[durchblick] Failed to create window for multiview '%s'", qt_to_utf8(name));
         }
 
         multiviews[id] = mv;
