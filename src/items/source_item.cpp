@@ -91,10 +91,12 @@ SourceItem::SourceItem(Layout* parent, int x, int y, int w, int h)
     m_toggle_volume = new QAction(T_SOURCE_ITEM_VOLUME, this);
     m_toggle_volume->setCheckable(true);
     SetSource(placeholder_source);
-    m_toggle_label->setChecked(true);
-    connect(m_toggle_volume, SIGNAL(toggled(bool)), this, SLOT(VolumeToggled(bool)));
 
-    // Connect toggle actions to trigger saves when changed
+    // Set default state before connecting signals to avoid triggering saves during construction
+    m_toggle_label->setChecked(true);
+
+    // Connect signals after initial state is set
+    connect(m_toggle_volume, SIGNAL(toggled(bool)), this, SLOT(VolumeToggled(bool)));
     connect(m_toggle_safe_borders, &QAction::toggled, [] { Config::Save(); });
     connect(m_toggle_label, &QAction::toggled, [] { Config::Save(); });
     connect(m_toggle_volume, &QAction::toggled, [] { Config::Save(); });
@@ -135,7 +137,10 @@ void SourceItem::LoadConfigFromWidget(QWidget* w)
         m_font_scale = custom->m_font_size->value() / 100.f;
         m_channel_width = custom->m_channel_width->value();
         m_volume_meter_height = custom->m_volume_meter_height->value() / 100.f;
+        // Block signals to prevent double-save (AddWidget already saves at the end)
+        m_toggle_volume->blockSignals(true);
         m_toggle_volume->setChecked(custom->m_show_volume_meter->isChecked());
+        m_toggle_volume->blockSignals(false);
         if (src && custom->m_show_volume_meter->isChecked()) {
             auto h = obs_source_get_height(src);
             m_vol_meter = std::make_unique<MixerMeter>(src.Get(), 10, 10, int(h * m_volume_meter_height));
@@ -172,9 +177,16 @@ void SourceItem::SetSource(obs_source_t* src)
 void SourceItem::ReadFromJson(QJsonObject const& Obj)
 {
     LayoutItem::ReadFromJson(Obj);
+    // Block signals during initialization to prevent triggering saves
+    m_toggle_safe_borders->blockSignals(true);
+    m_toggle_label->blockSignals(true);
+    m_toggle_volume->blockSignals(true);
     m_toggle_safe_borders->setChecked(Obj["show_safe_borders"].toBool());
     m_toggle_label->setChecked(Obj["show_label"].toBool());
     m_toggle_volume->setChecked(Obj["show_volume"].toBool());
+    m_toggle_safe_borders->blockSignals(false);
+    m_toggle_label->blockSignals(false);
+    m_toggle_volume->blockSignals(false);
 
     if (Obj["font_scale"].isDouble())
         m_font_scale = Obj["font_scale"].toDouble(1);

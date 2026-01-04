@@ -34,8 +34,12 @@ void PreviewProgramItem::LoadConfigFromWidget(QWidget* w)
         m_font_scale = custom->m_font_size->value() / 100.f;
     }
 
-    if (!m_program)
+    if (!m_program) {
+        // Block signals to prevent double-save (AddWidget already saves at the end)
+        m_toggle_safe_borders->blockSignals(true);
         m_toggle_safe_borders->setChecked(true); // Preview shows safe borders by default
+        m_toggle_safe_borders->blockSignals(false);
+    }
     CreateLabel();
 }
 

@@ -114,7 +114,10 @@ public:
         m_cell.row = Obj["row"].toInt();
         m_cell.w = Obj["w"].toInt();
         m_cell.h = Obj["h"].toInt();
+        // Block signals during initialization to prevent triggering saves
+        m_toggle_stretch->blockSignals(true);
         m_toggle_stretch->setChecked(Obj["stretch"].toBool());
+        m_toggle_stretch->blockSignals(false);
     }
 
     /// Determines the border of the cell when it is not hovered
