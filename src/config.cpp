@@ -45,6 +45,7 @@ QMenu* toolsMenu = nullptr;
 bool isLoading = false;
 static bool callbacksRegistered = false;
 static bool cleanedUp = false;
+static bool initialLoadDone = false;
 
 QJsonObject Cfg;
 
@@ -168,7 +169,10 @@ static void save_callback(obs_data_t*, bool, void*)
 static void event_callback(enum obs_frontend_event event, void*)
 {
     if (event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
-        Load();
+        if (!initialLoadDone) {
+            Load();
+            initialLoadDone = true;
+        }
     } else if (event == OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN) {
         // I couldn't find another event that was on exit and
         // before source/scene data was cleared
@@ -183,7 +187,10 @@ static void event_callback(enum obs_frontend_event event, void*)
         if (dbdock && dbdock->GetDurchblick())
             dbdock->GetDurchblick()->GetLayout()->Clear();
     } else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED) {
-        Load();
+        // Only reload if initial load is done (not during startup)
+        if (initialLoadDone) {
+            Load();
+        }
     }
 }
 
