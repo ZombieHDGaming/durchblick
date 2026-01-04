@@ -31,9 +31,11 @@ struct MultiviewInstance {
     QString name;
     QString id;
     Durchblick* window;
+    DurchblickDock* dock;  // Optional dock widget for this multiview
     bool isPersistent;
+    bool isDocked;  // Whether this multiview should be shown as a dock
 
-    MultiviewInstance(const QString& name, const QString& id, bool persistent = true);
+    MultiviewInstance(const QString& name, const QString& id, bool persistent = true, bool docked = false);
     ~MultiviewInstance();
 };
 
@@ -55,7 +57,7 @@ extern void Save();
 extern void Cleanup();
 
 // Multiview management functions
-extern MultiviewInstance* CreateMultiview(const QString& name, bool persistent = true);
+extern MultiviewInstance* CreateMultiview(const QString& name, bool persistent = true, bool docked = false);
 extern void RemoveMultiview(const QString& id);
 extern MultiviewInstance* GetMultiview(const QString& id);
 extern QList<QString> GetMultiviewIds();

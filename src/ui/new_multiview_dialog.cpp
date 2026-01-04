@@ -36,13 +36,18 @@ void NewMultiviewDialog::OKClicked()
     }
 
     bool persistent = m_persistent_checkbox->isChecked();
+    bool docked = m_docked_checkbox->isChecked();
 
     // Create the new multiview
-    auto* mv = Config::CreateMultiview(name, persistent);
-    if (mv && mv->window) {
-        mv->window->show();
-        mv->window->raise();
-        mv->window->activateWindow();
+    auto* mv = Config::CreateMultiview(name, persistent, docked);
+    if (mv) {
+        if (docked && mv->dock) {
+            mv->dock->show();
+        } else if (!docked && mv->window) {
+            mv->window->show();
+            mv->window->raise();
+            mv->window->activateWindow();
+        }
     }
 
     Config::Save();
@@ -72,6 +77,12 @@ NewMultiviewDialog::NewMultiviewDialog(QWidget* parent)
     m_persistent_checkbox->setChecked(true);
     m_persistent_checkbox->setToolTip("If checked, this window will be saved with the scene collection and restored on startup.");
     layout->addWidget(m_persistent_checkbox);
+
+    // Docked checkbox
+    m_docked_checkbox = new QCheckBox("Show as dock", this);
+    m_docked_checkbox->setChecked(false);
+    m_docked_checkbox->setToolTip("If checked, this multiview will be shown as a dockable panel instead of a standalone window.");
+    layout->addWidget(m_docked_checkbox);
 
     // Button box
     m_button_box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);

@@ -48,18 +48,41 @@ static bool cleanedUp = false;
 
 QJsonObject Cfg;
 
-MultiviewInstance::MultiviewInstance(const QString& name, const QString& id, bool persistent)
+MultiviewInstance::MultiviewInstance(const QString& name, const QString& id, bool persistent, bool docked)
     : name(name)
     , id(id)
     , window(nullptr)
+    , dock(nullptr)
     , isPersistent(persistent)
+    , isDocked(docked)
 {
-    window = new Durchblick();
+    if (docked) {
+        // Create as dock widget
+        const auto main_window = static_cast<QMainWindow*>(obs_frontend_get_main_window());
+        if (main_window) {
+            obs_frontend_push_ui_translation(obs_module_get_string);
+            dock = new DurchblickDock((QWidget*)main_window);
+            dock->setWindowTitle(name);
+            // Register dock with unique ID
+            obs_frontend_add_dock_by_id(qt_to_utf8(QString("durchblick_") + id), qt_to_utf8(name), dock);
+            obs_frontend_pop_ui_translation();
+            window = dock->GetDurchblick();
+        }
+    } else {
+        // Create as standalone window
+        window = new Durchblick();
+    }
 }
 
 MultiviewInstance::~MultiviewInstance()
 {
-    if (window) {
+    if (dock) {
+        // Dock widget deletion will handle the Durchblick window
+        obs_frontend_remove_dock(qt_to_utf8(QString("durchblick_") + id));
+        delete dock;
+        dock = nullptr;
+        window = nullptr; // Window is owned by dock
+    } else if (window) {
         delete window;
         window = nullptr;
     }
@@ -138,6 +161,7 @@ static void event_callback(enum obs_frontend_event event, void*)
     } else if (event == OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN) {
         // I couldn't find another event that was on exit and
         // before source/scene data was cleared
+        Save();
         Cleanup();
     } else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING) {
         // Clear all multiview layouts before scene collection changes
@@ -197,14 +221,23 @@ void Load()
         auto name = mvData["name"].toString();
         bool persistent = mvData["persistent"].toBool(true);
         bool visible = mvData["visible"].toBool(false);
+        bool docked = mvData["docked"].toBool(false);
 
-        auto* mv = new MultiviewInstance(name, id, persistent);
-        mv->window->setWindowTitle(name);
-        // Force display creation even if window will be hidden
-        // This ensures rendering callbacks are properly connected
-        mv->window->CreateDisplay(true);
-        mv->window->Load(mvData["layout"].toObject());
-        mv->window->setVisible(visible);
+        auto* mv = new MultiviewInstance(name, id, persistent, docked);
+        if (mv->window) {
+            mv->window->setWindowTitle(name);
+            // Force display creation even if window will be hidden
+            // This ensures rendering callbacks are properly connected
+            mv->window->CreateDisplay(true);
+            mv->window->Load(mvData["layout"].toObject());
+
+            // Set visibility - docks handle their own visibility
+            if (!docked) {
+                mv->window->setVisible(visible);
+            } else if (mv->dock) {
+                mv->dock->setVisible(visible);
+            }
+        }
 
         multiviews[id] = mv;
 
@@ -222,24 +255,11 @@ void Load()
         db->GetLayout()->CreateDefaultLayout();
     }
 
-#if !defined(_WIN32) && !defined(__APPLE__)
-    if (obs_get_nix_platform() > OBS_NIX_PLATFORM_X11_EGL)
-#endif
-    {
-        if (!dbdock) {
-            const auto main_window = static_cast<QMainWindow*>(obs_frontend_get_main_window());
-            obs_frontend_push_ui_translation(obs_module_get_string);
-            dbdock = new DurchblickDock((QWidget*)main_window);
-            obs_frontend_add_dock_by_id("durchblick", "Durchblick", Config::dbdock);
-            obs_frontend_pop_ui_translation();
-        }
-
+    // Migrate legacy dbdock if it exists (backward compatibility)
+    if (dbdock) {
         auto dockLayout = cfg["dock"].toObject();
         if (!dockLayout.isEmpty()) {
             dbdock->GetDurchblick()->Load(dockLayout);
-        } else {
-            dbdock->setVisible(false);
-            dbdock->GetDurchblick()->GetLayout()->CreateDefaultLayout();
         }
     }
     isLoading = false;
@@ -268,17 +288,26 @@ void Save()
         QJsonObject mvData {};
         mvData["name"] = mv->name;
         mvData["persistent"] = mv->isPersistent;
-        mvData["visible"] = mv->window->isVisible();
+        mvData["docked"] = mv->isDocked;
+
+        // Get visibility from window or dock
+        if (mv->isDocked && mv->dock) {
+            mvData["visible"] = mv->dock->isVisible();
+        } else if (mv->window) {
+            mvData["visible"] = mv->window->isVisible();
+        }
 
         QJsonObject layout {};
-        mv->window->Save(layout);
-        mvData["layout"] = layout;
+        if (mv->window) {
+            mv->window->Save(layout);
+            mvData["layout"] = layout;
+        }
 
         multiviewsObj[mv->id] = mvData;
     }
     sceneCollectionData["multiviews"] = multiviewsObj;
 
-    // Save dock layout
+    // Save legacy dock layout (backward compatibility)
     if (dbdock) {
         QJsonObject dockLayout {};
         dbdock->GetDurchblick()->Save(dockLayout);
@@ -330,7 +359,7 @@ void Cleanup()
     }
 }
 
-MultiviewInstance* CreateMultiview(const QString& name, bool persistent)
+MultiviewInstance* CreateMultiview(const QString& name, bool persistent, bool docked)
 {
     // Generate unique ID
     QString id = name.toLower().replace(" ", "_");
@@ -340,10 +369,12 @@ MultiviewInstance* CreateMultiview(const QString& name, bool persistent)
         id = baseId + "_" + QString::number(counter++);
     }
 
-    auto* mv = new MultiviewInstance(name, id, persistent);
-    mv->window->setWindowTitle(name);
-    mv->window->CreateDisplay(true);
-    mv->window->GetLayout()->CreateDefaultLayout();
+    auto* mv = new MultiviewInstance(name, id, persistent, docked);
+    if (mv->window) {
+        mv->window->setWindowTitle(name);
+        mv->window->CreateDisplay(true);
+        mv->window->GetLayout()->CreateDefaultLayout();
+    }
 
     multiviews[id] = mv;
 
