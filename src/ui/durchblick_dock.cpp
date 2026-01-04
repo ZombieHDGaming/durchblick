@@ -27,13 +27,11 @@ void DurchblickDock::showEvent(QShowEvent* e)
 {
     QWidget::showEvent(e);
 
-    // For multiview docks, ensure display is created when shown
+    // For multiview docks, the display and layout are managed by MultiviewInstance
+    // Just ensure the embedded widget is visible
     if (m_is_multiview_dock) {
-        if (!e->spontaneous() && db) {
-            // Ensure the display is created now that the window is being shown
-            if (!db->GetDisplay()) {
-                db->CreateDisplay(true);
-            }
+        if (db && !db->isVisible()) {
+            db->show();
         }
         return;
     }
@@ -65,10 +63,13 @@ DurchblickDock::DurchblickDock(QWidget* parent, bool isMultiviewDock)
     setObjectName("DurchblickDock");
 
     auto* mainLayout = new QVBoxLayout(this);
+    mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->addWidget(db);
+    setLayout(mainLayout);
 
-    auto* dockWidgetContents = new QWidget(this);
-    dockWidgetContents->setLayout(mainLayout);
+    // For embedded widgets, explicitly show to ensure proper initialization
+    // Similar to obs-source-dock approach
+    db->show();
 }
 
 DurchblickDock::~DurchblickDock()

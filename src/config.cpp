@@ -258,12 +258,7 @@ void Load()
             blog(LOG_INFO, "[durchblick] Initializing multiview '%s'", qt_to_utf8(name));
             mv->window->setWindowTitle(name);
 
-            // For standalone windows, force display creation
-            // For docked widgets, display will be created in showEvent
-            if (!docked) {
-                mv->window->CreateDisplay(true);
-            }
-
+            // Load layout data
             mv->window->Load(mvData["layout"].toObject());
 
             // Set visibility - docks handle their own visibility
@@ -410,13 +405,6 @@ MultiviewInstance* CreateMultiview(const QString& name, bool persistent, bool do
     auto* mv = new MultiviewInstance(name, id, persistent, docked);
     if (mv->window) {
         mv->window->setWindowTitle(name);
-
-        // For standalone windows, create display immediately
-        // For docked widgets, display will be created in showEvent
-        if (!docked) {
-            mv->window->CreateDisplay(true);
-        }
-
         mv->window->GetLayout()->CreateDefaultLayout();
     }
 
