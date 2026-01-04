@@ -148,7 +148,10 @@ void SourceItem::LoadConfigFromWidget(QWidget* w)
             m_vol_meter = std::make_unique<MixerMeter>(src, 10, 10, int(h * m_volume_meter_height));
         }
         SetSource(src);
-        // OBSSource smart pointer takes ownership, no need to release
+        // Release the reference from obs_get_source_by_name (if we got one)
+        // OBSSource smart pointer in SetSource holds its own reference
+        if (src)
+            obs_source_release(src);
     }
 }
 
@@ -217,7 +220,6 @@ void SourceItem::ReadFromJson(QJsonObject const& Obj)
         src = obs_get_source_by_name(qt_to_utf8(source_name));
         if (src) {
             SetSource(src);
-            // OBSSource smart pointer takes ownership, no need to release
         } else {
             blog(LOG_WARNING, "[durchblick] Source '%s' not found during load, using placeholder", qt_to_utf8(source_name));
             SetSource(placeholder_source);
@@ -226,10 +228,16 @@ void SourceItem::ReadFromJson(QJsonObject const& Obj)
         SetSource(placeholder_source);
     }
 
+    // Create volume meter before releasing the temporary reference
     if (src && m_toggle_volume->isChecked()) {
         auto h = obs_source_get_height(src);
         m_vol_meter = std::make_unique<MixerMeter>(src, m_volume_meter_x, m_volume_meter_y, int(h * m_volume_meter_height));
     }
+
+    // Release the reference from obs_get_source_by_name (if we got one)
+    // OBSSource smart pointer in SetSource holds its own reference
+    if (src)
+        obs_source_release(src);
 }
 
 void SourceItem::WriteToJson(QJsonObject& Obj)
